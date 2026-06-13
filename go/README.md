@@ -27,14 +27,15 @@ import (
 
 func main() {
     j := jsonic.Make()
-    j.Use(hoover.Make(hoover.Options{
-        Block: map[string]*hoover.Block{
-            "triplequote": {
+    j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
+        "block": []*hoover.Block{
+            {
+                Name:  "triplequote",
                 Start: hoover.StartSpec{Fixed: []string{"'''"}},
                 End:   hoover.EndSpec{Fixed: []string{"'''"}},
             },
         },
-    }))
+    })
 
     result, err := j.Parse("{a: '''hello world'''}")
     if err != nil {

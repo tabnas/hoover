@@ -230,7 +230,7 @@ function matchStart(
               cI++
               if ('\n' === src[fsI]) {
                 rI++
-                cI = 0
+                cI = 1
               }
             }
           }
@@ -339,7 +339,7 @@ function parseToEnd(
     cI++
     if ('\n' === c) {
       rI++
-      cI = 0
+      cI = 1
     }
   } while (sI <= src.length)
 
@@ -356,7 +356,7 @@ function parseToEnd(
           cI++
           if ('\n' === src[esI]) {
             rI++
-            cI = 0
+            cI = 1
           }
         }
       }

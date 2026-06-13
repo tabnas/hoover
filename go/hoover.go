@@ -1,6 +1,5 @@
 /* Copyright (c) 2021-2026 Richard Rodger, MIT License */
 
-
 package hoover
 
 import (
@@ -9,20 +8,19 @@ import (
 
 const Version = "0.1.7"
 
-
 // Block defines a hoover block configuration.
 type Block struct {
 	Name               string
 	Start              StartSpec
 	End                EndSpec
-	Token              string            // Token name, default "#HV"
+	Token              string // Token name, default "#HV"
 	EscapeChar         string
 	Escape             map[string]string
 	AllowUnknownEscape *bool // default true
 	PreserveEscapeChar bool
 	Trim               bool
 
-	tin  jsonic.Tin
+	tin jsonic.Tin
 }
 
 // EndSpec defines how a block ends.
@@ -53,8 +51,8 @@ type HooverRuleSpec struct {
 
 // StartSpec defines how a block starts.
 type StartSpec struct {
-	Fixed   []string  // Start delimiter(s)
-	Consume *bool     // Whether to consume the start delimiter (nil = true)
+	Fixed   []string        // Start delimiter(s)
+	Consume any             // bool, *bool or []string; nil = true. A []string consumes only the listed delimiters.
 	Rule    *HooverRuleSpec // Rule context matching
 }
 
@@ -91,7 +89,7 @@ func buildBlocks(blockDefs []*Block) []*Block {
 // Use with jsonic.UseDefaults to apply Defaults automatically:
 //
 //	j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
-//	    "block": map[string]*hoover.Block{ ... },
+//	    "block": []*hoover.Block{ ... },
 //	})
 var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 	blockDefs, _ := opts["block"].([]*Block)
@@ -144,6 +142,15 @@ var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 
 						return tkn
 					}
+
+					// Once a start matches, the block is committed: a failure to
+					// reach an end delimiter is an error, not a fall-through to
+					// the next block. Mirror TS, which returns result.bad or a
+					// generic invalid_text bad token.
+					if result.err != "" {
+						return lex.Bad(result.err)
+					}
+					return lex.Bad("invalid_text")
 				}
 			}
 			return nil
@@ -245,8 +252,7 @@ func matchStart(
 			if sI+len(f) <= len(src) && src[sI:sI+len(f)] == f {
 				matchFixed = true
 
-				consume := start.Consume == nil || *start.Consume
-				if consume {
+				if shouldConsumeStart(start.Consume, f) {
 					endI := sI + len(f)
 					for fsI := sI; fsI < endI; fsI++ {
 						sI++
@@ -435,6 +441,23 @@ func parseToEnd(
 	}
 }
 
+// shouldConsumeStart reports whether the matched start delimiter should be
+// consumed. Mirrors TS: consume unless consume === false; when an array, only
+// consume delimiters listed in it; nil means consume.
+func shouldConsumeStart(consume any, matched string) bool {
+	switch v := consume.(type) {
+	case nil:
+		return true
+	case bool:
+		return v
+	case *bool:
+		return v == nil || *v
+	case []string:
+		return containsStr(v, matched)
+	}
+	return true
+}
+
 func shouldConsumeEnd(endspec EndSpec, src string, sI, endI int) bool {
 	if endspec.Consume == nil {
 		return true
@@ -475,7 +498,6 @@ func containsChar(s string, sub string) bool {
 	}
 	return false
 }
-
 
 func trimString(s string) string {
 	start := 0

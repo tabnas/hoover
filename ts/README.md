@@ -60,12 +60,13 @@ Parse triple-quoted strings that preserve internal whitespace and newlines:
 **TypeScript**
 ```typescript
 const j = Jsonic.make().use(Hoover, {
-  block: {
-    triplequote: {
+  block: [
+    {
+      name: 'triplequote',
       start: { fixed: "'''" },
       end: { fixed: "'''" },
-    }
-  }
+    },
+  ],
 })
 
 j("{a: '''hello world'''}") // { a: 'hello world' }
@@ -74,14 +75,15 @@ j("{a: '''hello world'''}") // { a: 'hello world' }
 **Go**
 ```go
 j := jsonic.Make()
-j.Use(hoover.Make(hoover.Options{
-  Block: map[string]*hoover.Block{
-    "triplequote": {
+j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
+  "block": []*hoover.Block{
+    {
+      Name:  "triplequote",
       Start: hoover.StartSpec{Fixed: []string{"'''"}},
       End:   hoover.EndSpec{Fixed: []string{"'''"}},
     },
   },
-}))
+})
 
 j.Parse("{a: '''hello world'''}") // map[string]any{"a": "hello world"}
 ```
