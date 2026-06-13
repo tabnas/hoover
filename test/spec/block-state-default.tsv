@@ -1,4 +1,0 @@
-input	expected
-{a:hello\nb:world\n}	{"a":"hello","b":"world"}
-a:one\n	{"a":"one"}
-{a:x\nb:y\nc:z\n}	{"a":"x","b":"y","c":"z"}

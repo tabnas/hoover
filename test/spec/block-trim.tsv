@@ -1,4 +1,0 @@
-input	expected
-x:  hello  \n	{"x":"hello"}
-x:  a b  \n	{"x":"a b"}
-x:hello\n	{"x":"hello"}

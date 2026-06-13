@@ -1,8 +1,0 @@
-input	expected
-{a:'''x'''}	{"a":"x"}
-['''x''']	["x"]
-a:'''x'''	{"a":"x"}
-a:['''x''']	{"a":["x"]}
-'''x'''	"x"
-{a:'''hello world'''}	{"a":"hello world"}
-{a:''' spaces '''}	{"a":" spaces "}

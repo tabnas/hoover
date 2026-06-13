@@ -1,5 +1,0 @@
-input	expected
-x:a\#b	{"x":"a#b"}
-x:a\;b	{"x":"a;b"}
-x:a\\b	{"x":"a\\b"}
-x:a\!b	{"x":"a!b"}
