@@ -138,6 +138,13 @@ start: {
 
 ### How hoover matching works
 
+Hoover is a grammar-dependent plugin: it adds an alternate to Jsonic's
+`val` rule, so a grammar providing that rule must be registered first.
+`Jsonic.make()` supplies it, so `Jsonic.make().use(Hoover, …)` is all
+you need. If the `val` rule is absent (for example on an `empty()`
+instance), `use` throws a clear error rather than silently creating an
+empty rule and failing later.
+
 Hoover registers a custom lexer matcher in Jsonic's tokenization
 pipeline. When the lexer encounters text, the matcher:
 

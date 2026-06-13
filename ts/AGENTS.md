@@ -64,3 +64,7 @@ Tests run against compiled output in `dist-test/`, so always
   `jsonic.rule('val', rs => rs.open({ s: [TOKEN], a }))` prepends the
   hoover alternate, and matchers are registered via
   `jsonic.options({ lex: { match: { hoover: { order, make } } } })`.
+- Hoover depends on the jsonic grammar's `val` rule. Register it on a
+  grammar-bearing instance (`Jsonic.make().use(Hoover, …)`); the plugin
+  inspects `jsonic.rule()` up front and **throws** a clear error if
+  `val` is missing, instead of silently creating an empty rule.

@@ -6,15 +6,10 @@ rule-context matching.
 
 ```go
 import (
-  "github.com/tabnas/parser/go/jsonic"
+  jsonic "github.com/jsonicjs/jsonic/go"
   hoover "github.com/jsonicjs/hoover/go"
 )
 ```
-
-hoover registers directly with the [tabnas](https://github.com/tabnas/parser)
-parser engine. `jsonic.Make()` returns a `*tabnas.Tabnas` instance
-carrying the relaxed-JSON grammar; hoover's types come from the engine
-package `github.com/tabnas/parser/go`.
 
 ```bash
 go get github.com/jsonicjs/hoover/go
@@ -167,6 +162,13 @@ Start: hoover.StartSpec{
 ## Explanation
 
 ### How hoover matching works
+
+Hoover is a grammar-dependent plugin: it adds an alternate to the
+jsonic `val` rule, so a grammar providing that rule must be registered
+first. `jsonic.Make()` supplies it, so registering hoover on that
+instance is all you need. If the `val` rule is missing (for example on
+an `Empty()` instance), `UseDefaults`/`Use` returns a clear `error`
+rather than silently creating an empty rule and failing later.
 
 Hoover registers a custom lexer matcher in Jsonic's tokenization
 pipeline (via `SetOptions`, under `lex.match.hoover`) and prepends a

@@ -24,7 +24,7 @@ fixtures encode exactly this behavior in both runtimes.
 | Path | What it is |
 |---|---|
 | [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@jsonic/hoover` npm package. A single plugin in `ts/src/hoover.ts`. Requires `jsonic` >= 2 as a peer dependency. |
-| [`go/`](go/) | Go port — module `github.com/jsonicjs/hoover/go`, a single `hoover.go`, registering directly with the [tabnas](https://github.com/tabnas/parser) parser engine (`github.com/tabnas/parser/go` plus its `/jsonic` grammar subpackage). |
+| [`go/`](go/) | Go port — module `github.com/jsonicjs/hoover/go`, a single `hoover.go`, depending on `github.com/jsonicjs/jsonic/go`. |
 | [`test/spec/`](test/spec/) | Shared `.tsv` conformance fixtures (`input → expected-JSON`). Run by **both** the TypeScript suite and the Go suite. |
 
 ## Authority and alignment rules
@@ -48,6 +48,13 @@ fixtures encode exactly this behavior in both runtimes.
 5. Once a block's start matches, the block is **committed**: failing to
    reach an end delimiter (or hitting a rejected escape) is an error,
    not a silent fall-through to the next block or matcher.
+6. Hoover is a **grammar-dependent plugin**: it extends the jsonic
+   grammar's `val` rule, so it must be registered on an instance that
+   already carries that grammar (the engine itself ships none). Register
+   the dependency first — `jsonic.Make()` provides it — then the hoover
+   plugin. Hoover **fails fast** with a clear error if the `val` rule is
+   absent, rather than creating an empty one and failing confusingly
+   later. Keep this guard in both runtimes.
 
 ## Build / test
 

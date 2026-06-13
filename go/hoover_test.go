@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	jsonic "github.com/tabnas/parser/go/jsonic"
+	jsonic "github.com/jsonicjs/jsonic/go"
 )
 
 func TestTripleQuote(t *testing.T) {

@@ -21,7 +21,7 @@ package main
 
 import (
     "fmt"
-    "github.com/tabnas/parser/go/jsonic"
+    jsonic "github.com/jsonicjs/jsonic/go"
     hoover "github.com/jsonicjs/hoover/go"
 )
 
