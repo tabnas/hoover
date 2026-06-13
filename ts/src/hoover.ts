@@ -87,6 +87,17 @@ function buildBlocks(blockDefs: Block[]): any[] {
 
 
 const Hoover: Plugin = (jsonic: Jsonic, options: HooverOptions) => {
+  // Hoover extends the jsonic grammar's `val` rule. Fail fast with a clear
+  // message if a grammar providing it has not been registered first, rather
+  // than silently creating an empty `val` rule and failing confusingly later.
+  const rules: any = jsonic.rule()
+  if (null == rules || null == rules.val) {
+    throw new Error(
+      "@jsonic/hoover: the 'val' rule is missing; " +
+        'register a jsonic grammar before the hoover plugin',
+    )
+  }
+
   let blocks = buildBlocks(options.block)
 
   let tokenMap: any = {}
@@ -230,7 +241,7 @@ function matchStart(
               cI++
               if ('\n' === src[fsI]) {
                 rI++
-                cI = 0
+                cI = 1
               }
             }
           }
@@ -339,7 +350,7 @@ function parseToEnd(
     cI++
     if ('\n' === c) {
       rI++
-      cI = 0
+      cI = 1
     }
   } while (sI <= src.length)
 
@@ -356,7 +367,7 @@ function parseToEnd(
           cI++
           if ('\n' === src[esI]) {
             rI++
-            cI = 0
+            cI = 1
           }
         }
       }

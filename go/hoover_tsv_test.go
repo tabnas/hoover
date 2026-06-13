@@ -287,33 +287,6 @@ func makeEndOfLineNoNumber(order int) *jsonic.Jsonic {
 	return j
 }
 
-// makeEndOfLineNoTrim creates a jsonic instance without trim.
-func makeEndOfLineNoTrim() *jsonic.Jsonic {
-	j := jsonic.Make()
-	j.UseDefaults(Hoover, Defaults, map[string]any{
-		"lex": map[string]any{
-			"order": 7500000,
-		},
-		"block": []*Block{
-			{
-				Name: "endofline",
-				Start: StartSpec{
-					Rule: &HooverRuleSpec{
-						Parent: &HooverRuleFilter{
-							Include: []string{"pair", "elem"},
-						},
-					},
-				},
-				End: EndSpec{
-					Fixed:   []string{"\n", "\r\n", ""},
-					Consume: []string{"\n", "\r\n"},
-				},
-			},
-		},
-	})
-	return j
-}
-
 // --- TSV Test Functions ---
 
 func TestTSVBlockFixed(t *testing.T) {

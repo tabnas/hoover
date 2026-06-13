@@ -22,12 +22,13 @@ import { Jsonic } from 'jsonic'
 import { Hoover } from '@jsonic/hoover'
 
 const j = Jsonic.make().use(Hoover, {
-  block: {
-    triplequote: {
+  block: [
+    {
+      name: 'triplequote',
       start: { fixed: "'''" },
       end: { fixed: "'''" },
-    }
-  }
+    },
+  ],
 })
 
 j("{a: '''hello world'''}")     // { a: 'hello world' }
@@ -46,8 +47,9 @@ import { Hoover } from '@jsonic/hoover'
 
 const j = Jsonic.make().use(Hoover, {
   lex: { order: 7.5e6 },  // after string and number matchers
-  block: {
-    endofline: {
+  block: [
+    {
+      name: 'endofline',
       start: {
         rule: {
           parent: { include: ['pair', 'elem'] },
@@ -60,8 +62,8 @@ const j = Jsonic.make().use(Hoover, {
       escapeChar: '\\',
       escape: { '#': '#', ';': ';', '\\': '\\' },
       trim: true,
-    }
-  }
+    },
+  ],
 })
 
 j("a: hello world\n")  // { a: 'hello world' }
@@ -97,8 +99,9 @@ Define an escape character and a mapping of escaped characters to
 their replacements:
 
 ```typescript
-block: {
-  myblock: {
+block: [
+  {
+    name: 'myblock',
     start: { fixed: '<<<' },
     end: { fixed: '>>>' },
     escapeChar: '\\',
@@ -110,8 +113,8 @@ block: {
     },
     allowUnknownEscape: false,  // reject unrecognized \x sequences
     preserveEscapeChar: false,  // strip the \ from output
-  }
-}
+  },
+]
 ```
 
 ### Restrict matching by rule context
@@ -134,6 +137,13 @@ start: {
 ## Explanation
 
 ### How hoover matching works
+
+Hoover is a grammar-dependent plugin: it adds an alternate to Jsonic's
+`val` rule, so a grammar providing that rule must be registered first.
+`Jsonic.make()` supplies it, so `Jsonic.make().use(Hoover, …)` is all
+you need. If the `val` rule is absent (for example on an `empty()`
+instance), `use` throws a clear error rather than silently creating an
+empty rule and failing later.
 
 Hoover registers a custom lexer matcher in Jsonic's tokenization
 pipeline. When the lexer encounters text, the matcher:
@@ -178,7 +188,7 @@ The plugin function. Register with `Jsonic.make().use(Hoover, options)`.
 
 ```typescript
 type HooverOptions = {
-  block: { [name: string]: Block }
+  block: Block[]            // ordered; blocks are tried in array order
   lex?: { order?: number }  // default: 4.5e6
   action?: AltAction
 }
@@ -188,9 +198,10 @@ type HooverOptions = {
 
 ```typescript
 type Block = {
+  name: string
   start?: {
     fixed?: string | string[]
-    consume?: null | boolean | string[]
+    consume?: null | boolean | string[]   // false = keep; array = consume only those
     rule?: {
       parent?: { include?: string[], exclude?: string[] }
       current?: { include?: string[], exclude?: string[] }
@@ -201,11 +212,12 @@ type Block = {
     fixed: string | string[]
     consume?: null | boolean | string[]
   }
+  token?: string                  // default: '#HV'
   escapeChar?: string
   escape?: { [char: string]: string }
-  allowUnknownEscape: boolean   // default: true
-  preserveEscapeChar: boolean   // default: false
-  trim: boolean
+  allowUnknownEscape?: boolean    // default: true
+  preserveEscapeChar?: boolean    // default: false
+  trim?: boolean
 }
 ```
 
@@ -238,7 +250,7 @@ use.
 
 ```typescript
 {
-  block: {},
+  block: [],
   lex: { order: 4.5e6 },
 }
 ```
