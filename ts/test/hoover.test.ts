@@ -161,4 +161,123 @@ describe('hoover', () => {
       }),
     )
   })
+
+  test('start delimiter consume', () => {
+    // consume: false leaves the start delimiter in the value
+    const j1 = makeMini({
+      block: [
+        { name: 'a', start: { fixed: '<', consume: false }, end: { fixed: '>' } },
+      ],
+    })
+    deepEqual(j1.parse(`<hi>`), '<hi')
+
+    // consume: [...] consumes only the listed start delimiters
+    const j2 = makeMini({
+      block: [
+        {
+          name: 'a',
+          start: { fixed: ['<', '~'], consume: ['<'] },
+          end: { fixed: '>' },
+        },
+      ],
+    })
+    deepEqual(j2.parse(`<hi>`), 'hi') // '<' consumed
+    deepEqual(j2.parse(`~hi>`), '~hi') // '~' kept
+  })
+
+  test('end delimiter consume (bool)', () => {
+    // consume: false leaves the end delimiter — here the group's ')'
+    const j1 = makeMini({
+      block: [
+        { name: 'a', start: { fixed: '~' }, end: { fixed: ')', consume: false } },
+      ],
+    })
+    deepEqual(j1.parse(`(~hi)`), 'hi')
+
+    // consume: true removes the end delimiter
+    const j2 = makeMini({
+      block: [
+        {
+          name: 'a',
+          start: { fixed: '~' },
+          end: { fixed: [';', ''], consume: true },
+        },
+      ],
+    })
+    deepEqual(j2.parse(`~hi;`), 'hi')
+  })
+
+  test('rule context parent exclude', () => {
+    const j = makeMini({
+      block: [
+        {
+          name: 'at',
+          start: { fixed: '@', rule: { parent: { exclude: ['group'] } } },
+          end: { fixed: '@' },
+        },
+      ],
+    })
+    deepEqual(j.parse(`@hi@`), 'hi') // top level: parent not group → matches
+    deepEqual(j.parse(`(@hi@)`), '@hi@') // inside group: excluded → text token
+  })
+
+  test('rule context current filter', () => {
+    const j = makeMini({
+      block: [
+        {
+          name: 'at',
+          start: {
+            fixed: '@',
+            rule: { current: { include: ['val'], exclude: ['group'] } },
+          },
+          end: { fixed: '@' },
+        },
+      ],
+    })
+    deepEqual(j.parse(`@hi@`), 'hi')
+  })
+
+  test('rule context state', () => {
+    // explicit state 'oc' checks open|close; matches at val open
+    const j1 = makeMini({
+      block: [
+        { name: 'at', start: { fixed: '@', rule: { state: 'oc' } }, end: { fixed: '@' } },
+      ],
+    })
+    deepEqual(j1.parse(`@hi@`), 'hi')
+
+    // state '' skips the state check entirely
+    const j2 = makeMini({
+      block: [
+        {
+          name: 'at',
+          start: { fixed: '@', rule: { parent: { include: ['group'] }, state: '' } },
+          end: { fixed: '@' },
+        },
+      ],
+    })
+    deepEqual(j2.parse(`(@hi@)`), 'hi')
+  })
+
+  test('newline-terminated value', () => {
+    const j = makeMini({
+      block: [
+        { name: 'line', start: { fixed: '~' }, end: { fixed: ['\n', '\r\n', ''] } },
+      ],
+    })
+    deepEqual(j.parse('~a b\n'), 'a b') // newline consumed
+    deepEqual(j.parse('~a b\r\n'), 'a b') // CRLF consumed
+    deepEqual(j.parse('~a b'), 'a b') // EOF
+  })
+
+  test('resolves keyword values', () => {
+    // A hoovered value that matches a defined value (true/false/null)
+    // resolves to that value, not the string.
+    const j = makeMini({
+      block: [{ name: 'a', start: { fixed: '~' }, end: { fixed: ['>', ''] } }],
+    })
+    deepEqual(j.parse('~true>'), true)
+    deepEqual(j.parse('~null>'), null)
+    deepEqual(j.parse('~hello>'), 'hello') // non-keyword stays a string
+  })
 })

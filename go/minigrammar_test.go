@@ -27,6 +27,15 @@ func miniGrammar(j *tabnas.Tabnas, _ map[string]any) error {
 			Token: map[string]*string{"#OP": &op, "#CP": &cp},
 		},
 		Rule: &tabnas.RuleOptions{Start: "val"},
+		// Define a few keyword values so value resolution is deterministic
+		// (the bare engine ships none in Go).
+		Value: &tabnas.ValueOptions{
+			Def: map[string]*tabnas.ValueDef{
+				"true":  {Val: true},
+				"false": {Val: false},
+				"null":  {Val: nil},
+			},
+		},
 	})
 	OP := j.Token("#OP")
 	CP := j.Token("#CP")

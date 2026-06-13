@@ -19,6 +19,10 @@ export function miniGrammar(am: Tabnas) {
   am.options({
     fixed: { token: { '#OP': '(', '#CP': ')' } },
     rule: { start: 'val' },
+    // Define a few keyword values so value resolution is deterministic.
+    value: {
+      def: { true: { val: true }, false: { val: false }, null: { val: null } },
+    },
   })
   am.token('#OP')
   am.token('#CP')

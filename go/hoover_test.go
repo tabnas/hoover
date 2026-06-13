@@ -197,3 +197,132 @@ func TestFailFastMissingGrammar(t *testing.T) {
 		t.Fatal("expected an error registering hoover without a grammar")
 	}
 }
+
+func TestStartConsume(t *testing.T) {
+	// consume: false leaves the start delimiter in the value.
+	j1 := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "a",
+			Start: StartSpec{Fixed: []string{"<"}, Consume: false},
+			End:   EndSpec{Fixed: []string{">"}},
+		}},
+	})
+	parseEq(t, j1, `<hi>`, "<hi")
+
+	// consume: [...] consumes only the listed start delimiters.
+	j2 := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "a",
+			Start: StartSpec{Fixed: []string{"<", "~"}, Consume: []string{"<"}},
+			End:   EndSpec{Fixed: []string{">"}},
+		}},
+	})
+	parseEq(t, j2, `<hi>`, "hi")  // '<' consumed
+	parseEq(t, j2, `~hi>`, "~hi") // '~' kept
+}
+
+func TestEndConsumeBool(t *testing.T) {
+	// consume: false leaves the end delimiter — here the group's ')'.
+	j1 := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "a",
+			Start: StartSpec{Fixed: []string{"~"}},
+			End:   EndSpec{Fixed: []string{")"}, Consume: false},
+		}},
+	})
+	parseEq(t, j1, `(~hi)`, "hi")
+
+	// consume: true removes the end delimiter.
+	j2 := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "a",
+			Start: StartSpec{Fixed: []string{"~"}},
+			End:   EndSpec{Fixed: []string{";", ""}, Consume: true},
+		}},
+	})
+	parseEq(t, j2, `~hi;`, "hi")
+}
+
+func TestRuleContextParentExclude(t *testing.T) {
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name: "at",
+			Start: StartSpec{
+				Fixed: []string{"@"},
+				Rule:  &HooverRuleSpec{Parent: &HooverRuleFilter{Exclude: []string{"group"}}},
+			},
+			End: EndSpec{Fixed: []string{"@"}},
+		}},
+	})
+	parseEq(t, j, `@hi@`, "hi")     // top level: parent not group -> matches
+	parseEq(t, j, `(@hi@)`, "@hi@") // inside group: excluded -> text token
+}
+
+func TestRuleContextCurrentFilter(t *testing.T) {
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name: "at",
+			Start: StartSpec{
+				Fixed: []string{"@"},
+				Rule: &HooverRuleSpec{
+					Current: &HooverRuleFilter{Include: []string{"val"}, Exclude: []string{"group"}},
+				},
+			},
+			End: EndSpec{Fixed: []string{"@"}},
+		}},
+	})
+	parseEq(t, j, `@hi@`, "hi")
+}
+
+func TestRuleContextState(t *testing.T) {
+	// explicit state "oc" checks open|close; matches at val open.
+	j1 := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "at",
+			Start: StartSpec{Fixed: []string{"@"}, Rule: &HooverRuleSpec{State: "oc"}},
+			End:   EndSpec{Fixed: []string{"@"}},
+		}},
+	})
+	parseEq(t, j1, `@hi@`, "hi")
+
+	// state "" + parent filter still matches at val open (default "o").
+	j2 := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name: "at",
+			Start: StartSpec{
+				Fixed: []string{"@"},
+				Rule:  &HooverRuleSpec{Parent: &HooverRuleFilter{Include: []string{"group"}}, State: ""},
+			},
+			End: EndSpec{Fixed: []string{"@"}},
+		}},
+	})
+	parseEq(t, j2, `(@hi@)`, "hi")
+}
+
+func TestNewlineTerminatedValue(t *testing.T) {
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "line",
+			Start: StartSpec{Fixed: []string{"~"}},
+			End:   EndSpec{Fixed: []string{"\n", "\r\n", ""}},
+		}},
+	})
+	parseEq(t, j, "~a b\n", "a b")   // newline consumed
+	parseEq(t, j, "~a b\r\n", "a b") // CRLF consumed
+	parseEq(t, j, "~a b", "a b")     // EOF
+}
+
+func TestResolvesKeywordValues(t *testing.T) {
+	// A hoovered value that matches a defined value (true/false/null)
+	// resolves to that value, not the string.
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "a",
+			Start: StartSpec{Fixed: []string{"~"}},
+			End:   EndSpec{Fixed: []string{">", ""}},
+		}},
+	})
+	parseEq(t, j, "~true>", true)
+	parseEq(t, j, "~null>", nil)
+	parseEq(t, j, "~hello>", "hello") // non-keyword stays a string
+}
