@@ -24,7 +24,7 @@ fixtures encode exactly this behavior in both runtimes.
 | Path | What it is |
 |---|---|
 | [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@jsonic/hoover` npm package. A single plugin in `ts/src/hoover.ts`. Requires `jsonic` >= 2 as a peer dependency. |
-| [`go/`](go/) | Go port — module `github.com/jsonicjs/hoover/go`, a single `hoover.go`, depending on `github.com/jsonicjs/jsonic/go`. |
+| [`go/`](go/) | Go port — module `github.com/jsonicjs/hoover/go`, a single `hoover.go`, registering directly with the [tabnas](https://github.com/tabnas/parser) parser engine (`github.com/tabnas/parser/go` plus its `/jsonic` grammar subpackage). |
 | [`test/spec/`](test/spec/) | Shared `.tsv` conformance fixtures (`input → expected-JSON`). Run by **both** the TypeScript suite and the Go suite. |
 
 ## Authority and alignment rules

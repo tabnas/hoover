@@ -13,7 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	jsonic "github.com/jsonicjs/jsonic/go"
+	tabnas "github.com/tabnas/parser/go"
+	jsonic "github.com/tabnas/parser/go/jsonic"
 )
 
 // tsvRow holds a row from a TSV file.
@@ -164,7 +165,7 @@ func unescape(s string) string {
 }
 
 // runTSV runs a standard 2-column TSV (input, expected) with a given jsonic instance.
-func runTSV(t *testing.T, file string, j *jsonic.Jsonic) {
+func runTSV(t *testing.T, file string, j *tabnas.Tabnas) {
 	t.Helper()
 	path := filepath.Join(specDir(), file)
 	rows, err := loadTSV(path)
@@ -201,7 +202,7 @@ func runTSV(t *testing.T, file string, j *jsonic.Jsonic) {
 // --- Hoover configurations matching the TSV spec files ---
 
 // makeTripleQuote creates a jsonic instance with triple-quote block.
-func makeTripleQuote() *jsonic.Jsonic {
+func makeTripleQuote() *tabnas.Tabnas {
 	j := jsonic.Make()
 	j.UseDefaults(Hoover, Defaults, map[string]any{
 		"block": []*Block{
@@ -221,7 +222,7 @@ func makeTripleQuote() *jsonic.Jsonic {
 
 // makeEndOfLine creates a jsonic instance with endofline block.
 // order sets the lex matcher priority.
-func makeEndOfLine(order int) *jsonic.Jsonic {
+func makeEndOfLine(order int) *tabnas.Tabnas {
 	j := jsonic.Make()
 	j.UseDefaults(Hoover, Defaults, map[string]any{
 		"lex": map[string]any{
@@ -257,10 +258,10 @@ func makeEndOfLine(order int) *jsonic.Jsonic {
 // makeEndOfLineNoNumber creates a jsonic instance with endofline block
 // and number lexing disabled. Tests the bug where number-like values
 // were skipped by hoover.
-func makeEndOfLineNoNumber(order int) *jsonic.Jsonic {
+func makeEndOfLineNoNumber(order int) *tabnas.Tabnas {
 	bFalse := false
-	j := jsonic.Make(jsonic.Options{
-		Number: &jsonic.NumberOptions{Lex: &bFalse},
+	j := jsonic.Make(tabnas.Options{
+		Number: &tabnas.NumberOptions{Lex: &bFalse},
 	})
 	j.UseDefaults(Hoover, Defaults, map[string]any{
 		"lex": map[string]any{

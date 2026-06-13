@@ -3,7 +3,7 @@
 package hoover
 
 import (
-	jsonic "github.com/jsonicjs/jsonic/go"
+	tabnas "github.com/tabnas/parser/go"
 )
 
 const Version = "0.1.7"
@@ -20,7 +20,7 @@ type Block struct {
 	PreserveEscapeChar bool
 	Trim               bool
 
-	tin jsonic.Tin
+	tin tabnas.Tin
 }
 
 // EndSpec defines how a block ends.
@@ -67,7 +67,7 @@ func (b *Block) allowUnknown() bool {
 }
 
 // Defaults contains the default Hoover plugin options, matching TS Hoover.defaults.
-// These are deep-merged with user-provided options by jsonic.UseDefaults().
+// These are deep-merged with user-provided options by tabnas.UseDefaults().
 var Defaults = map[string]any{
 	"lex": map[string]any{
 		"order": 4500000, // before string(5e6), number(7e6)
@@ -86,17 +86,17 @@ func buildBlocks(blockDefs []*Block) []*Block {
 }
 
 // Hoover is the plugin function, matching the TS Hoover plugin.
-// Use with jsonic.UseDefaults to apply Defaults automatically:
+// Use with tabnas.UseDefaults to apply Defaults automatically:
 //
 //	j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
 //	    "block": []*hoover.Block{ ... },
 //	})
-var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
+var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) error {
 	blockDefs, _ := opts["block"].([]*Block)
-	action, _ := opts["action"].(jsonic.AltAction)
+	action, _ := opts["action"].(tabnas.AltAction)
 
 	blocks := buildBlocks(blockDefs)
-	tokenMap := map[string]jsonic.Tin{}
+	tokenMap := map[string]tabnas.Tin{}
 
 	for _, block := range blocks {
 		tin := j.Token(block.Token)
@@ -104,9 +104,9 @@ var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 
 		if _, exists := tokenMap[block.Token]; !exists {
 			localTin := tin
-			j.Rule("val", func(rs *jsonic.RuleSpec, _ *jsonic.Parser) {
-				rs.PrependOpen(&jsonic.AltSpec{
-					S: [][]jsonic.Tin{{localTin}},
+			j.Rule("val", func(rs *tabnas.RuleSpec, _ *tabnas.Parser) {
+				rs.PrependOpen(&tabnas.AltSpec{
+					S: [][]tabnas.Tin{{localTin}},
 					A: action,
 				})
 			})
@@ -114,13 +114,13 @@ var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 		tokenMap[block.Token] = tin
 	}
 
-	makeHooverMatcher := func(cfg *jsonic.LexConfig, _opts *jsonic.Options) jsonic.LexMatcher {
-		var hooverMatcher jsonic.LexMatcher
-		hooverMatcher = func(lex *jsonic.Lex, rule *jsonic.Rule) *jsonic.Token {
+	makeHooverMatcher := func(cfg *tabnas.LexConfig, _opts *tabnas.Options) tabnas.LexMatcher {
+		var hooverMatcher tabnas.LexMatcher
+		hooverMatcher = func(lex *tabnas.Lex, rule *tabnas.Rule) *tabnas.Token {
 			for _, block := range blocks {
 				pnt := lex.Cursor()
 
-				hvpnt := &jsonic.Point{
+				hvpnt := &tabnas.Point{
 					Len: pnt.Len,
 					SI:  pnt.SI,
 					RI:  pnt.RI,
@@ -158,9 +158,9 @@ var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 		return hooverMatcher
 	}
 
-	j.SetOptions(jsonic.Options{
-		Lex: &jsonic.LexOptions{
-			Match: map[string]*jsonic.MatchSpec{
+	j.SetOptions(tabnas.Options{
+		Lex: &tabnas.LexOptions{
+			Match: map[string]*tabnas.MatchSpec{
 				"hoover": {
 					Order: opts["lex"].(map[string]any)["order"].(int),
 					Make:  makeHooverMatcher,
@@ -172,8 +172,8 @@ var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 }
 
 func matchStart(
-	lex *jsonic.Lex,
-	hvpnt *jsonic.Point,
+	lex *tabnas.Lex,
+	hvpnt *tabnas.Point,
 	block *Block,
 ) startResult {
 	src := lex.Src
@@ -290,10 +290,10 @@ func matchStart(
 }
 
 func parseToEnd(
-	lex *jsonic.Lex,
-	hvpnt *jsonic.Point,
+	lex *tabnas.Lex,
+	hvpnt *tabnas.Point,
 	block *Block,
-	cfg *jsonic.LexConfig,
+	cfg *tabnas.LexConfig,
 ) parseResult {
 	var valc []byte
 

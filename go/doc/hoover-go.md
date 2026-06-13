@@ -6,10 +6,15 @@ rule-context matching.
 
 ```go
 import (
-  jsonic "github.com/jsonicjs/jsonic/go"
+  "github.com/tabnas/parser/go/jsonic"
   hoover "github.com/jsonicjs/hoover/go"
 )
 ```
+
+hoover registers directly with the [tabnas](https://github.com/tabnas/parser)
+parser engine. `jsonic.Make()` returns a `*tabnas.Tabnas` instance
+carrying the relaxed-JSON grammar; hoover's types come from the engine
+package `github.com/tabnas/parser/go`.
 
 ```bash
 go get github.com/jsonicjs/hoover/go

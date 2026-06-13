@@ -1,9 +1,19 @@
 # Agents Guide — @jsonic/hoover (Go)
 
-A Go port of `@jsonic/hoover`, the [jsonic](https://github.com/jsonicjs/jsonic)
-syntax plugin for block-delimited string parsing. This is module
-`github.com/jsonicjs/hoover/go`, a single `hoover.go`, built on the Go
-jsonic engine (`github.com/jsonicjs/jsonic/go`).
+A Go port of `@jsonic/hoover`, the jsonic syntax plugin for
+block-delimited string parsing. This is module
+`github.com/jsonicjs/hoover/go`, a single `hoover.go`, that registers
+directly with the [tabnas](https://github.com/tabnas/parser) parser
+engine.
+
+It depends on two packages from the tabnas parser module:
+- `github.com/tabnas/parser/go` (imported as `tabnas`) — the engine,
+  which supplies the plugin machinery types hoover uses (`Plugin`,
+  `RuleSpec`, `AltSpec`, `Tin`, `Lex`, `Token`, `Point`, `LexConfig`,
+  `Options`, …);
+- `github.com/tabnas/parser/go/jsonic` — the relaxed-JSON grammar,
+  whose `Make()` returns a `*tabnas.Tabnas` to register the plugin on
+  (needed for the `val` rule the hoover token plugs into).
 
 ## Authority
 
@@ -17,7 +27,7 @@ produce the same value as TypeScript.
 ## Layout
 
 - `hoover.go` — the whole plugin:
-  - `Hoover` — the `jsonic.Plugin` value; `Defaults` — the option
+  - `Hoover` — the `tabnas.Plugin` value; `Defaults` — the option
     defaults (lex order `4500000`); `Version`.
   - `Block`, `StartSpec`, `EndSpec`, `HooverRuleSpec`,
     `HooverRuleFilter` — the configuration types.
@@ -52,7 +62,7 @@ Type notes versus TS:
   delimiters. This mirrors the TS `null | boolean | string[]`.
 - `AllowUnknownEscape` is `*bool` (`nil` means the default, `true`).
 - The `#HV` default token name and the `4.5e6` default lex order match
-  TS exactly; use `jsonic.Describe(j)` to confirm matcher priority and
+  TS exactly; use `tabnas.Describe(j)` to confirm matcher priority and
   token registration while debugging.
 
 ## Commands
