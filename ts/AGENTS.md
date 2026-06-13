@@ -54,10 +54,14 @@ Tests run against compiled output in `dist-test/`, so always
 ## Rules of the road
 
 - Behavior here is the spec: the Go port (`../go/`) must follow. Port in
-  the same change, or it falls out of parity with the shared fixtures.
+  the same change, or it falls out of parity. The TS suite runs the
+  shared `../test/spec/*.tsv` fixtures against jsonic; the Go port has no
+  grammar dependency and checks equivalent behavior against its own tiny
+  grammar, so mirror new behavior there rather than expecting Go to run
+  the JSON fixtures.
 - Prefer a shared fixture in `../test/spec/` (`input → expected-JSON`)
-  over a one-off assertion when the case is expressible as input→output;
-  wire it into the Go suite too.
+  over a one-off TS assertion when the case is expressible as
+  input→output.
 - Row/column tracking follows the jsonic engine convention: columns are
   1-based and reset to `1` (not `0`) after a newline.
 - The plugin/rule API is jsonic's: `jsonic.token(name)` mints a token,

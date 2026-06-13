@@ -1,12 +1,12 @@
-# Hoover plugin for Jsonic (Go)
+# Hoover plugin for the tabnas parser (Go)
 
-A Jsonic syntax plugin that adds configurable block-delimited string
-parsing with custom start/end delimiters, escape handling, and
-rule-context matching.
+A syntax plugin that adds configurable block-delimited string parsing —
+custom start/end delimiters, escape handling, and rule-context matching
+— to the [tabnas](https://github.com/tabnas/parser) parser engine.
 
 ```go
 import (
-  jsonic "github.com/jsonicjs/jsonic/go"
+  tabnas "github.com/tabnas/parser/go"
   hoover "github.com/jsonicjs/hoover/go"
 )
 ```
@@ -15,30 +15,38 @@ import (
 go get github.com/jsonicjs/hoover/go
 ```
 
-The plugin is the `hoover.Hoover` value. Register it with
-`jsonic.UseDefaults`, which deep-merges `hoover.Defaults` (the default
-lex order) under your options:
+hoover's only dependency is the engine. The engine ships no grammar, and
+hoover is grammar-agnostic: it adds an alternate to the `val` rule, so
+register a grammar that defines `val` **first**, then the hoover plugin.
+Register hoover with `UseDefaults`, which deep-merges `hoover.Defaults`
+(the default lex order) under your options:
 
 ```go
-j := jsonic.Make()
+j := tabnas.Make()
+j.Use(myGrammar) // your grammar plugin; must define the `val` rule
 j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
   "block": []*hoover.Block{ /* ... */ },
 })
 ```
 
 `block` is an ordered `[]*hoover.Block`; blocks are tried in array
-order.
+order. If the `val` rule is absent, `UseDefaults` returns a clear error.
+
+The examples below assume a grammar that parses a single value, plus a
+parenthesised `group`, like the runnable
+[`minigrammar_test.go`](../minigrammar_test.go) used by the test suite.
 
 
 ## Tutorials
 
 ### Parse triple-quoted strings
 
-Add support for `'''...'''` strings that preserve whitespace and
-newlines:
+Add support for `'''...'''` strings that preserve internal whitespace
+and newlines:
 
 ```go
-j := jsonic.Make()
+j := tabnas.Make()
+j.Use(myGrammar)
 j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
   "block": []*hoover.Block{
     {
@@ -49,46 +57,33 @@ j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
   },
 })
 
-j.Parse("{a: '''hello world'''}")    // map[string]any{"a": "hello world"}
-j.Parse("'''line1\nline2'''")        // "line1\nline2"
-j.Parse("{a: '''\n  indented\n'''}") // map[string]any{"a": "\n  indented\n"}
+j.Parse("'''hello world'''")  // "hello world"  (spaces preserved)
+j.Parse("'''line1\nline2'''") // "line1\nline2" (newlines preserved)
+j.Parse("('''x''')")          // "x"            (nested in a group)
 ```
 
-### Parse end-of-line values with comments
+### Parse a value up to a terminator
 
-Capture unquoted values (including spaces) up to end-of-line, with
-`#` and `;` as comment/end markers. Run hoover after the string and
-number matchers (`order: 7500000`) so quoted and numeric values are
-still lexed normally:
+Capture an unquoted value (including spaces) up to a terminator or
+end-of-input. Listing `""` among the end delimiters lets the value run
+to EOF:
 
 ```go
-j := jsonic.Make()
+j := tabnas.Make()
+j.Use(myGrammar)
 j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
-  "lex": map[string]any{"order": 7500000},
   "block": []*hoover.Block{
     {
-      Name: "endofline",
-      Start: hoover.StartSpec{
-        Rule: &hoover.HooverRuleSpec{
-          Parent: &hoover.HooverRuleFilter{
-            Include: []string{"pair", "elem"},
-          },
-        },
-      },
-      End: hoover.EndSpec{
-        Fixed:   []string{"\n", "\r\n", "#", ";", ""},
-        Consume: []string{"\n", "\r\n"},
-      },
-      EscapeChar: "\\",
-      Escape:     map[string]string{"#": "#", ";": ";", "\\": "\\"},
-      Trim:       true,
+      Name:  "line",
+      Start: hoover.StartSpec{Fixed: []string{"~"}},
+      End:   hoover.EndSpec{Fixed: []string{";", ""}},
+      Trim:  true,
     },
   },
 })
 
-j.Parse("a: hello world\n")   // map[string]any{"a": "hello world"}
-j.Parse("x: value # comment") // map[string]any{"x": "value"}
-j.Parse("x: a\\#b")           // map[string]any{"x": "a#b"}
+j.Parse("~hello world;") // "hello world" (terminator)
+j.Parse("~ trimmed ")    // "trimmed"     (EOF, edges trimmed)
 ```
 
 
@@ -110,8 +105,8 @@ Start: hoover.StartSpec{
 
 // Selectively consume only some end delimiters
 End: hoover.EndSpec{
-  Fixed:   []string{"\n", "\r\n", "#", ";"},
-  Consume: []string{"\n", "\r\n"},  // consume newlines, leave # and ; alone
+  Fixed:   []string{";", "#", ""},
+  Consume: []string{";"},  // consume ';', leave '#' for another matcher
 }
 ```
 
@@ -143,14 +138,16 @@ the TypeScript implementation.
 
 ### Restrict matching by rule context
 
-Use `Start.Rule` to limit when a block matches based on the current
-parser rule state:
+Use `Start.Rule` to limit when a block matches, based on the rule the
+parser is in when the lexer reaches the block. The rule names are
+whatever your grammar defines (e.g. `group`, or `pair`/`elem` in a
+JSON-like grammar):
 
 ```go
 Start: hoover.StartSpec{
   Rule: &hoover.HooverRuleSpec{
     Parent: &hoover.HooverRuleFilter{
-      Include: []string{"pair", "elem"},  // only in object pairs or array elements
+      Include: []string{"group"},  // only when the current rule's parent is `group`
     },
     // Current: &hoover.HooverRuleFilter{Include: []string{"val"}},
     // State: "o",  // "o" = open (default), "c" = close, "" = don't check
@@ -163,17 +160,16 @@ Start: hoover.StartSpec{
 
 ### How hoover matching works
 
-Hoover is a grammar-dependent plugin: it adds an alternate to the
-jsonic `val` rule, so a grammar providing that rule must be registered
-first. `jsonic.Make()` supplies it, so registering hoover on that
-instance is all you need. If the `val` rule is missing (for example on
-an `Empty()` instance), `UseDefaults`/`Use` returns a clear `error`
-rather than silently creating an empty rule and failing later.
+Hoover is a grammar-dependent plugin: it adds an alternate to the host
+grammar's `val` rule, so a grammar providing that rule must be
+registered first (the engine ships none). If the `val` rule is missing
+(for example on a bare `tabnas.Make()` instance), `UseDefaults`/`Use`
+returns a clear `error` rather than silently creating an empty rule and
+failing later.
 
-Hoover registers a custom lexer matcher in Jsonic's tokenization
-pipeline (via `SetOptions`, under `lex.match.hoover`) and prepends a
-`val`-rule alternate for its token. When the lexer reaches a position,
-the matcher:
+Hoover registers a custom lexer matcher in the tokenization pipeline
+(via `SetOptions`, under `lex.match.hoover`) and prepends a `val`-rule
+alternate for its token. When the lexer reaches a position, the matcher:
 
 1. Iterates through the configured blocks in array order.
 2. For each block, checks the **rule context** (`lex.Ctx.Rule`):
@@ -190,13 +186,13 @@ rather than falling through to the next block.
 
 ### Matcher ordering
 
-The `lex.order` option controls where hoover runs relative to Jsonic's
-built-in matchers — the same scheme as the TypeScript plugin, and the
-same `4.5e6` default:
+The `lex.order` option controls where hoover runs relative to the
+engine's built-in matchers — the same scheme as the TypeScript plugin,
+and the same `4.5e6` default:
 
 | Order | Matcher |
 |-------|---------|
-| 2e6 | Fixed tokens (`{`, `}`, `[`, `]`, `:`, `,`) |
+| 2e6 | Fixed tokens |
 | 3e6 | Spaces |
 | 4e6 | Lines |
 | **4.5e6** | **Hoover (default)** |
@@ -206,15 +202,15 @@ same `4.5e6` default:
 | 8e6 | Text |
 
 Use a lower order to run before built-in matchers (e.g. triple-quote
-before strings), or a higher order to run after (e.g. end-of-line at
-`7.5e6`, after strings and numbers but before text). Use
-`jsonic.Describe(j)` to confirm the registered matcher priority while
+before strings), or a higher order to run after (e.g. an end-of-line
+value at `7.5e6`, after strings and numbers but before text). Use
+`tabnas.Describe(j)` to confirm the registered matcher priority while
 debugging.
 
 
 ## Reference
 
-### `Hoover` (`jsonic.Plugin`)
+### `Hoover` (`tabnas.Plugin`)
 
 The plugin value. Register with
 `j.UseDefaults(hoover.Hoover, hoover.Defaults, opts)`.
@@ -227,7 +223,7 @@ var Defaults = map[string]any{
 }
 ```
 
-Deep-merged under the caller's options by `jsonic.UseDefaults`.
+Deep-merged under the caller's options by `UseDefaults`.
 
 ### Options map
 
@@ -235,7 +231,7 @@ Deep-merged under the caller's options by `jsonic.UseDefaults`.
 map[string]any{
   "block":  []*hoover.Block, // ordered; tried in array order
   "lex":    map[string]any{"order": int},
-  "action": jsonic.AltAction, // optional val-rule alternate action
+  "action": tabnas.AltAction, // optional val-rule alternate action
 }
 ```
 

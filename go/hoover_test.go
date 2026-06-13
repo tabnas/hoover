@@ -6,137 +6,194 @@ import (
 	"reflect"
 	"testing"
 
-	jsonic "github.com/jsonicjs/jsonic/go"
+	tabnas "github.com/tabnas/parser/go"
 )
 
-func TestTripleQuote(t *testing.T) {
-	j := jsonic.Make()
-	j.UseDefaults(Hoover, Defaults, map[string]any{
-		"block": []*Block{
-			{
-				Name: "triplequote",
-				Start: StartSpec{
-					Fixed: []string{"'''"},
-				},
-				End: EndSpec{
-					Fixed: []string{"'''"},
-				},
-			},
-		},
-	})
+// These tests run the hoover plugin against the tiny local grammar in
+// minigrammar_test.go (val + parenthesised group). The grammar exists only
+// to give hoover something to plug into; hoover's only production
+// dependency is the tabnas engine.
 
-	tests := []struct {
-		name string
-		src  string
-		want any
-	}{
-		{"object value", `{a:'''x'''}`, map[string]any{"a": "x"}},
-		{"array value", `['''x''']`, []any{"x"}},
-		{"pair value", `a:'''x'''`, map[string]any{"a": "x"}},
-		{"pair array value", `a:['''x''']`, map[string]any{"a": []any{"x"}}},
-		{"top level", `'''x'''`, "x"},
-
-		{"object newline", "{a:'''\nx\n'''}", map[string]any{"a": "\nx\n"}},
-		{"object newlines spaces", "{a:'''\n\n  x\n\n'''}", map[string]any{"a": "\n\n  x\n\n"}},
-
-		{"array newline", "['''\nx\n''']", []any{"\nx\n"}},
-		{"array newlines spaces", "['''\n\n  x\n\n''']", []any{"\n\n  x\n\n"}},
-
-		{"pair newline", "a:'''\nx\n'''", map[string]any{"a": "\nx\n"}},
-		{"pair newlines spaces", "a:'''\n\n  x\n\n'''", map[string]any{"a": "\n\n  x\n\n"}},
-
-		{"pair array newline", "a:['''\nx\n''']", map[string]any{"a": []any{"\nx\n"}}},
-		{"pair array newlines spaces", "a:['''\n\n  x\n\n''']", map[string]any{"a": []any{"\n\n  x\n\n"}}},
-
-		{"top newline", "'''\nx\n'''", "\nx\n"},
-		{"top newlines spaces", "'''\n\n  x\n\n'''", "\n\n  x\n\n"},
-
-		{"mixed content", `{a:1,b:'x',c:['y'] d:e:'z', ` + "\n" + `f:"'''"}`,
-			map[string]any{
-				"a": float64(1),
-				"b": "x",
-				"c": []any{"y"},
-				"d": map[string]any{"e": "z"},
-				"f": "'''",
-			}},
+func parseEq(t *testing.T, j *tabnas.Tabnas, src string, want any) {
+	t.Helper()
+	got, err := j.Parse(src)
+	if err != nil {
+		t.Fatalf("Parse(%q) error: %v", src, err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := j.Parse(tt.src)
-			if err != nil {
-				t.Fatalf("Parse(%q) error: %v", tt.src, err)
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Parse(%q)\n  got  %#v\n  want %#v", tt.src, got, tt.want)
-			}
-		})
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Parse(%q) = %#v, want %#v", src, got, want)
 	}
 }
 
-func TestEndOfLine(t *testing.T) {
-	j := jsonic.Make()
-	j.UseDefaults(Hoover, Defaults, map[string]any{
-		// Mirror the TS endofline test: run after string and number matchers.
-		"lex": map[string]any{"order": 7500000},
-		"block": []*Block{
-			{
-				Name: "endofline",
-				Start: StartSpec{
-					Rule: &HooverRuleSpec{
-						Parent: &HooverRuleFilter{
-							Include: []string{"pair", "elem"},
-						},
-					},
-				},
-				End: EndSpec{
-					Fixed:   []string{"\n", "\r\n", "#", ";", ""},
-					Consume: []string{"\n", "\r\n"},
-				},
-				EscapeChar: "\\",
-				Escape: map[string]string{
-					"#":  "#",
-					";":  ";",
-					"\\": "\\",
-				},
-				Trim: true,
-			},
-		},
-	})
-
-	tests := []struct {
-		name string
-		src  string
-		want any
-	}{
-		{"basic spaces", "{a:x x\n}", map[string]any{"a": "x x"}},
-
-		{"multiline pair", "\n    a: x x\n    ",
-			map[string]any{"a": "x x"}},
-
-		// NOTE: does not lex at top level
-		{"hash as end", `x: a#b`, map[string]any{"x": "a"}},
-		{"escaped hash", `x:a\#b`, map[string]any{"x": "a#b"}},
-
-		// NOTE: d:e:'z' will no longer work
-		{"mixed content", "{ a: 1, b: 'x', c: ['y'], \nf: \"'''\" }",
-			map[string]any{
-				"a": float64(1),
-				"b": "x",
-				"c": []any{"y"},
-				"f": "'''",
-			}},
+func parseErr(t *testing.T, j *tabnas.Tabnas, src string) {
+	t.Helper()
+	if got, err := j.Parse(src); err == nil {
+		t.Errorf("Parse(%q) = %#v, want an error", src, got)
 	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := j.Parse(tt.src)
-			if err != nil {
-				t.Fatalf("Parse(%q) error: %v", tt.src, err)
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Parse(%q)\n  got  %#v\n  want %#v", tt.src, got, tt.want)
-			}
-		})
+// tripleQuote: ”'...”' fixed delimiters, default options.
+func tripleQuote(t *testing.T) *tabnas.Tabnas {
+	return makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "triplequote",
+			Start: StartSpec{Fixed: []string{"'''"}},
+			End:   EndSpec{Fixed: []string{"'''"}},
+		}},
+	})
+}
+
+func TestFixedDelimiters(t *testing.T) {
+	j := tripleQuote(t)
+	parseEq(t, j, `'''x'''`, "x")
+	parseEq(t, j, `'''hello world'''`, "hello world") // internal spaces preserved
+	parseEq(t, j, "'''a\nb'''", "a\nb")               // newlines preserved
+	parseEq(t, j, "'''  spaced  '''", "  spaced  ")   // no trim by default
+	parseEq(t, j, `('''x''')`, "x")                   // nested in a group
+	parseEq(t, j, `(''' a b ''')`, " a b ")
+}
+
+func TestEOFAndMultipleEndDelimiters(t *testing.T) {
+	// ~ opens; closes on '>', '!' or end-of-input.
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "tilde",
+			Start: StartSpec{Fixed: []string{"~"}},
+			End:   EndSpec{Fixed: []string{">", "!", ""}},
+		}},
+	})
+	parseEq(t, j, `~hello world`, "hello world") // EOF terminates
+	parseEq(t, j, `~a>`, "a")                    // first delimiter
+	parseEq(t, j, `~a!`, "a")                    // second delimiter
+}
+
+func TestEscapes(t *testing.T) {
+	// < ... > with backslash escapes; allowUnknownEscape defaults to true.
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:       "angle",
+			Start:      StartSpec{Fixed: []string{"<"}},
+			End:        EndSpec{Fixed: []string{">"}},
+			EscapeChar: "\\",
+			Escape:     map[string]string{"n": "\n", ">": ">", "\\": "\\"},
+		}},
+	})
+	parseEq(t, j, `<a\>b>`, "a>b")  // escaped end delimiter
+	parseEq(t, j, `<a\nb>`, "a\nb") // mapped escape
+	parseEq(t, j, `<a\\b>`, "a\\b") // escaped backslash
+	parseEq(t, j, `<a\zb>`, "azb")  // unknown escape: backslash dropped
+}
+
+func TestRejectUnknownEscape(t *testing.T) {
+	f := false
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:               "angle",
+			Start:              StartSpec{Fixed: []string{"<"}},
+			End:                EndSpec{Fixed: []string{">"}},
+			EscapeChar:         "\\",
+			Escape:             map[string]string{">": ">"},
+			AllowUnknownEscape: &f,
+		}},
+	})
+	parseEq(t, j, `<a\>b>`, "a>b") // known escape still works
+	parseErr(t, j, `<a\zb>`)       // unknown escape rejected
+}
+
+func TestPreserveEscapeChar(t *testing.T) {
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:               "angle",
+			Start:              StartSpec{Fixed: []string{"<"}},
+			End:                EndSpec{Fixed: []string{">"}},
+			EscapeChar:         "\\",
+			PreserveEscapeChar: true,
+		}},
+	})
+	parseEq(t, j, `<a\zb>`, "a\\zb") // escape char kept in output
+}
+
+func TestTrim(t *testing.T) {
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "angle",
+			Start: StartSpec{Fixed: []string{"<"}},
+			End:   EndSpec{Fixed: []string{">"}},
+			Trim:  true,
+		}},
+	})
+	parseEq(t, j, `<  hello  >`, "hello")
+	parseEq(t, j, `< a b >`, "a b") // internal spaces kept, edges trimmed
+}
+
+func TestSelectiveEndConsume(t *testing.T) {
+	// Closes on ';' or end-of-input; only ';' is consumed.
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "tilde",
+			Start: StartSpec{Fixed: []string{"~"}},
+			End:   EndSpec{Fixed: []string{";", ""}, Consume: []string{";"}},
+		}},
+	})
+	parseEq(t, j, `~a b;`, "a b")
+	parseEq(t, j, `~a b`, "a b")
+}
+
+func TestRuleContextParent(t *testing.T) {
+	// The @ block only matches when the current rule's parent is `group`.
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name: "at",
+			Start: StartSpec{
+				Fixed: []string{"@"},
+				Rule: &HooverRuleSpec{
+					Parent: &HooverRuleFilter{Include: []string{"group"}},
+				},
+			},
+			End: EndSpec{Fixed: []string{"@"}},
+		}},
+	})
+	// Inside a group (parent == group): matches.
+	parseEq(t, j, `(@hello world@)`, "hello world")
+	// At top level (parent is not group): does not match, so the bare
+	// '@' is unexpected and the parse fails.
+	parseErr(t, j, `@hello world@`)
+}
+
+func TestCustomTokenName(t *testing.T) {
+	// A non-default token name still parses and is registered on the engine.
+	j := tabnas.Make()
+	if err := j.Use(miniGrammar); err != nil {
+		t.Fatalf("miniGrammar: %v", err)
+	}
+	if err := j.UseDefaults(Hoover, Defaults, map[string]any{
+		"block": []*Block{{
+			Name:  "tq",
+			Token: "#XX",
+			Start: StartSpec{Fixed: []string{"'''"}},
+			End:   EndSpec{Fixed: []string{"'''"}},
+		}},
+	}); err != nil {
+		t.Fatalf("hoover Use: %v", err)
+	}
+	parseEq(t, j, `'''x'''`, "x")
+	if _, ok := j.RSM()["val"]; !ok {
+		t.Fatal("val rule missing")
+	}
+}
+
+func TestFailFastMissingGrammar(t *testing.T) {
+	// Registering hoover on a bare engine (no grammar, no `val` rule)
+	// returns a clear error instead of failing confusingly later.
+	j := tabnas.Make()
+	err := j.UseDefaults(Hoover, Defaults, map[string]any{
+		"block": []*Block{{
+			Name:  "tq",
+			Start: StartSpec{Fixed: []string{"'''"}},
+			End:   EndSpec{Fixed: []string{"'''"}},
+		}},
+	})
+	if err == nil {
+		t.Fatal("expected an error registering hoover without a grammar")
 	}
 }
