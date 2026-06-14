@@ -42,10 +42,10 @@ func miniGrammar(j *tabnas.Tabnas, _ map[string]any) error {
 
 	// val: a scalar value, or a parenthesised group.
 	j.Rule("val", func(rs *tabnas.RuleSpec, _ *tabnas.Parser) {
-		rs.BO = []tabnas.StateAction{func(r *tabnas.Rule, ctx *tabnas.Context) {
+		rs.AddBO(func(r *tabnas.Rule, ctx *tabnas.Context) {
 			r.Node = tabnas.Undefined
-		}}
-		rs.BC = []tabnas.StateAction{func(r *tabnas.Rule, ctx *tabnas.Context) {
+		})
+		rs.AddBC(func(r *tabnas.Rule, ctx *tabnas.Context) {
 			if !tabnas.IsUndefined(r.Node) {
 				return
 			}
@@ -57,30 +57,26 @@ func miniGrammar(j *tabnas.Tabnas, _ map[string]any) error {
 				return
 			}
 			r.Node = r.O0.ResolveVal(r, ctx)
-		}}
-		rs.Open = []*tabnas.AltSpec{
-			{S: [][]tabnas.Tin{{OP}}, P: "group", B: 1},
-			{S: [][]tabnas.Tin{tabnas.TinSetVAL}},
-		}
-		rs.Close = []*tabnas.AltSpec{
-			{S: [][]tabnas.Tin{{tabnas.TinZZ}}},
-			{S: [][]tabnas.Tin{{CP}}, B: 1},
-		}
+		})
+		rs.AddOpen(
+			&tabnas.AltSpec{S: [][]tabnas.Tin{{OP}}, P: "group", B: 1},
+			&tabnas.AltSpec{S: [][]tabnas.Tin{tabnas.TinSetVAL}},
+		)
+		rs.AddClose(
+			&tabnas.AltSpec{S: [][]tabnas.Tin{{tabnas.TinZZ}}},
+			&tabnas.AltSpec{S: [][]tabnas.Tin{{CP}}, B: 1},
+		)
 	})
 
 	// group: '(' value ')' — yields the inner value.
 	j.Rule("group", func(rs *tabnas.RuleSpec, _ *tabnas.Parser) {
-		rs.BC = []tabnas.StateAction{func(r *tabnas.Rule, ctx *tabnas.Context) {
+		rs.AddBC(func(r *tabnas.Rule, ctx *tabnas.Context) {
 			if r.Child != nil {
 				r.Node = r.Child.Node
 			}
-		}}
-		rs.Open = []*tabnas.AltSpec{
-			{S: [][]tabnas.Tin{{OP}}, P: "val"},
-		}
-		rs.Close = []*tabnas.AltSpec{
-			{S: [][]tabnas.Tin{{CP}}},
-		}
+		})
+		rs.AddOpen(&tabnas.AltSpec{S: [][]tabnas.Tin{{OP}}, P: "val"})
+		rs.AddClose(&tabnas.AltSpec{S: [][]tabnas.Tin{{CP}}})
 	})
 	return nil
 }

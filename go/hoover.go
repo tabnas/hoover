@@ -111,7 +111,7 @@ var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) (err erro
 	// than silently creating an empty `val` rule and failing confusingly later.
 	// (An empty instance keeps the rule key but with no alternates, so check
 	// for usable open alternates, not just key presence.)
-	if val, ok := j.RSM()["val"]; !ok || val == nil || len(val.Open) == 0 {
+	if val, ok := j.RSM()["val"]; !ok || val == nil || len(val.OpenAlts()) == 0 {
 		return fmt.Errorf(
 			"hoover: the 'val' rule is missing; register a grammar that defines it before the hoover plugin")
 	}
