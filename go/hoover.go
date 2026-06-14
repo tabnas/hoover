@@ -97,7 +97,15 @@ func buildBlocks(blockDefs []*Block) []*Block {
 //	j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
 //	    "block": []*hoover.Block{ ... },
 //	})
-var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) error {
+var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) (err error) {
+	// Never panic out of the plugin: convert any unexpected panic into a
+	// returned error, matching the engine's no-panic contract.
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("hoover: %v", r)
+		}
+	}()
+
 	// Hoover extends the host grammar's `val` rule. Fail fast with a clear
 	// error if a grammar providing it has not been registered first, rather
 	// than silently creating an empty `val` rule and failing confusingly later.
@@ -132,7 +140,14 @@ var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) error {
 
 	makeHooverMatcher := func(cfg *tabnas.LexConfig, _opts *tabnas.Options) tabnas.LexMatcher {
 		var hooverMatcher tabnas.LexMatcher
-		hooverMatcher = func(lex *tabnas.Lex, rule *tabnas.Rule) *tabnas.Token {
+		hooverMatcher = func(lex *tabnas.Lex, rule *tabnas.Rule) (tkn *tabnas.Token) {
+			// Never panic out of the lexer: convert any unexpected panic into
+			// a bad token so Parse returns an error instead of crashing.
+			defer func() {
+				if r := recover(); r != nil {
+					tkn = lex.Bad("invalid_text")
+				}
+			}()
 			for _, block := range blocks {
 				pnt := lex.Cursor()
 
@@ -150,13 +165,13 @@ var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) error {
 
 					if result.done {
 						src := lex.Src[pnt.SI:hvpnt.SI]
-						tkn := lex.Token(block.Token, block.tin, result.val, src)
+						out := lex.Token(block.Token, block.tin, result.val, src)
 
 						pnt.SI = hvpnt.SI
 						pnt.RI = hvpnt.RI
 						pnt.CI = hvpnt.CI
 
-						return tkn
+						return out
 					}
 
 					// Once a start matches, the block is committed: a failure to

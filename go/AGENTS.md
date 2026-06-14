@@ -92,6 +92,11 @@ go test -coverpkg=./... -cover ./...
   token, mirroring TS.
 - Pointer option fields (`AllowUnknownEscape`, `StartSpec.Consume` when a
   `*bool`) follow the "`nil` = default" convention.
+- hoover never panics out of `Use`/`Parse`: the plugin recovers to a
+  returned `error` and the matcher recovers to a bad token (Parse then
+  returns an error). Keep new code panic-free anyway — guard every index
+  and type assertion (use the comma-ok form); the recovers are a
+  backstop, not a license to index unsafely.
 - Hoover depends on the host grammar's `val` rule. Register it on a
   grammar-bearing instance (`tabnas.Make().Use(grammar).UseDefaults(
   Hoover, …)`); the plugin inspects `j.RSM()` up front and returns a

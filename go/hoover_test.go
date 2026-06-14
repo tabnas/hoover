@@ -313,6 +313,39 @@ func TestNewlineTerminatedValue(t *testing.T) {
 	parseEq(t, j, "~a b", "a b")     // EOF
 }
 
+func TestNoPanicOnMalformedOptions(t *testing.T) {
+	// hoover must never panic; any failure is a returned error. Exercise a
+	// range of malformed/edge option shapes.
+	cases := []map[string]any{
+		nil,
+		{},
+		{"lex": "nonsense"},
+		{"lex": map[string]any{}},
+		{"lex": map[string]any{"order": "notint"}},
+		{"lex": map[string]any{"order": 3.5}},
+		{"block": "notblocks"},
+		{"action": "notanaction"},
+	}
+	for i, opts := range cases {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("case %d (%v): panicked: %v", i, opts, r)
+				}
+			}()
+			j := tabnas.Make()
+			_ = j.Use(miniGrammar)
+			// Use (not UseDefaults) so Defaults are not merged in; the plugin
+			// must still register or return an error, never panic.
+			if err := j.Use(Hoover, opts); err != nil {
+				return // an error is acceptable; a panic is not
+			}
+			// A registered instance must also parse without panicking.
+			_, _ = j.Parse(`'''x'''`)
+		}()
+	}
+}
+
 func TestRegistersWithoutLexOrder(t *testing.T) {
 	// A direct Use (no Defaults merge) and no lex option must register
 	// cleanly using the default order, not panic.
