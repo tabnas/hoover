@@ -167,6 +167,12 @@ Once a start matches, the block is committed: if no end delimiter is
 reached, or an escape is rejected, the matcher returns a bad token
 rather than falling through to the next block.
 
+A hoovered value that matches a keyword the host grammar defines
+(via `value.def`, e.g. `true`/`false`/`null`) resolves to that value
+rather than the string — but only when the host grammar enables value
+lexing and defines those keywords. The bare engine defines none, so
+plain text stays a string unless your grammar opts in.
+
 ### Matcher ordering
 
 The `lex.order` option controls where hoover runs relative to the

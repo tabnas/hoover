@@ -184,6 +184,13 @@ Once a start matches, the block is committed: if no end delimiter is
 reached, or an escape is rejected, the matcher returns a bad token
 rather than falling through to the next block.
 
+A hoovered value that matches a keyword the host grammar defines (via
+`Value.Def`, e.g. `true`/`false`/`null`) resolves to that value rather
+than the string — but only when the host grammar enables value lexing
+and defines those keywords. The bare Go engine defines none (unlike the
+TS engine, which ships `true`/`false`/`null`), so define them on the
+instance if you want resolution.
+
 ### Matcher ordering
 
 The `lex.order` option controls where hoover runs relative to the
@@ -276,9 +283,14 @@ type EndSpec struct {
 type HooverRuleSpec struct {
   Parent  *HooverRuleFilter
   Current *HooverRuleFilter
-  State   string  // "" = don't check, "o"/"c"/"oc" = check; default "o"
+  State   string  // "o"/"c"/"oc" = check; "" (unset) defaults to "o"
 }
 ```
+
+Unlike TypeScript, where `state: ''` means "don't check the rule state",
+Go's `State` zero value (`""`) cannot be distinguished from "unset", so
+it always defaults to `"o"` (open). To match in the close state too, set
+`State: "oc"`. There is no Go equivalent of the TS "skip state check".
 
 ### `HooverRuleFilter`
 

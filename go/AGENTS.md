@@ -100,3 +100,9 @@ go test -coverpkg=./... -cover ./...
 - The local test grammar is deliberately minimal. When you need to test
   a new behavior, extend it just enough — do not pull in a full grammar
   package; the engine-only dependency is intentional.
+- Two known Go/TS gaps, both rooted in the engine, not hoover:
+  `HooverRuleSpec.State == ""` cannot mean "skip the state check" the way
+  TS `state: ''` does (Go's zero value defaults to `"o"`); and the bare
+  Go engine ships no `value.def` keywords (`true`/`false`/`null`) while
+  the TS engine does, so value resolution needs the host grammar to
+  define them (the test grammar does). Keep both documented if touched.

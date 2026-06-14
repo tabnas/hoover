@@ -48,7 +48,7 @@ type HooverRuleFilter struct {
 type HooverRuleSpec struct {
 	Parent  *HooverRuleFilter
 	Current *HooverRuleFilter
-	State   string // "" = don't check, "o"/"c"/"oc" = check; default "o"
+	State   string // "o"/"c"/"oc" = check; "" (unset) defaults to "o" (no "don't check", unlike TS)
 }
 
 // StartSpec defines how a block starts.
@@ -79,10 +79,14 @@ var Defaults = map[string]any{
 func buildBlocks(blockDefs []*Block) []*Block {
 	blocks := make([]*Block, len(blockDefs))
 	for i, block := range blockDefs {
-		if block.Token == "" {
-			block.Token = "#HV"
+		// Copy so applying defaults (and stashing the token id) does not
+		// mutate the caller's Block, matching the TS plugin which builds
+		// fresh block objects.
+		nb := *block
+		if nb.Token == "" {
+			nb.Token = "#HV"
 		}
-		blocks[i] = block
+		blocks[i] = &nb
 	}
 	return blocks
 }
@@ -174,13 +178,26 @@ var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) error {
 		Lex: &tabnas.LexOptions{
 			Match: map[string]*tabnas.MatchSpec{
 				"hoover": {
-					Order: opts["lex"].(map[string]any)["order"].(int),
+					Order: lexOrder(opts),
 					Make:  makeHooverMatcher,
 				},
 			},
 		},
 	})
 	return nil
+}
+
+// lexOrder reads the configured matcher order, defaulting to the Defaults
+// value when the lex option is absent or malformed. Mirrors the TS
+// `options.lex?.order`, so a direct Use (without UseDefaults merging
+// Defaults) registers cleanly instead of panicking.
+func lexOrder(opts map[string]any) int {
+	if lex, ok := opts["lex"].(map[string]any); ok {
+		if order, ok := lex["order"].(int); ok {
+			return order
+		}
+	}
+	return 4500000
 }
 
 func matchStart(
@@ -382,12 +399,17 @@ func parseToEnd(
 
 		// Handle escape sequences
 		if escapeChar != 0 && c == escapeChar && sI+1 < len(src) {
-			nextChar := string(src[sI+1])
+			escaped := src[sI+1]
+			nextChar := string(escaped)
 			if block.Escape != nil {
 				if replacement, ok := block.Escape[nextChar]; ok {
 					valc = append(valc, []byte(replacement)...)
 					sI += 2
 					cI += 2
+					if replacement == "\n" {
+						rI++
+						cI = 1
+					}
 					continue
 				}
 			}
@@ -395,9 +417,13 @@ func parseToEnd(
 				if block.PreserveEscapeChar {
 					valc = append(valc, c)
 				}
-				valc = append(valc, src[sI+1])
+				valc = append(valc, escaped)
 				sI += 2
 				cI += 2
+				if escaped == '\n' {
+					rI++
+					cI = 1
+				}
 				continue
 			}
 			return parseResult{

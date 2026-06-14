@@ -58,6 +58,7 @@ describe('hoover', () => {
     deepEqual(j.parse(`<a\\nb>`), 'a\nb') // mapped escape
     deepEqual(j.parse(`<a\\\\b>`), 'a\\b') // escaped backslash
     deepEqual(j.parse(`<a\\zb>`), 'azb') // unknown escape: backslash dropped
+    deepEqual(j.parse('<a\\\nb>'), 'a\nb') // backslash before a literal newline
   })
 
   test('reject unknown escape', () => {
@@ -279,5 +280,27 @@ describe('hoover', () => {
     deepEqual(j.parse('~true>'), true)
     deepEqual(j.parse('~null>'), null)
     deepEqual(j.parse('~hello>'), 'hello') // non-keyword stays a string
+  })
+
+  test('registers without an explicit lex order', () => {
+    // No lex option given: the default order applies and registration works.
+    const j = new Tabnas()
+      .use(miniGrammar)
+      .use(Hoover, {
+        block: [{ name: 'tq', start: { fixed: `'''` }, end: { fixed: `'''` } }],
+      })
+    deepEqual(j.parse(`'''x'''`), 'x')
+  })
+
+  test('does not mutate caller block definitions', () => {
+    const block: any = {
+      name: 'tq',
+      start: { fixed: `'''` },
+      end: { fixed: `'''` },
+    }
+    new Tabnas().use(miniGrammar).use(Hoover, { block: [block] })
+    // The default token is applied to an internal copy, not the caller's object.
+    deepEqual(block.token, undefined)
+    deepEqual(block.TOKEN, undefined)
   })
 })

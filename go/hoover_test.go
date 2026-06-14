@@ -78,10 +78,11 @@ func TestEscapes(t *testing.T) {
 			Escape:     map[string]string{"n": "\n", ">": ">", "\\": "\\"},
 		}},
 	})
-	parseEq(t, j, `<a\>b>`, "a>b")  // escaped end delimiter
-	parseEq(t, j, `<a\nb>`, "a\nb") // mapped escape
-	parseEq(t, j, `<a\\b>`, "a\\b") // escaped backslash
-	parseEq(t, j, `<a\zb>`, "azb")  // unknown escape: backslash dropped
+	parseEq(t, j, `<a\>b>`, "a>b")    // escaped end delimiter
+	parseEq(t, j, `<a\nb>`, "a\nb")   // mapped escape
+	parseEq(t, j, `<a\\b>`, "a\\b")   // escaped backslash
+	parseEq(t, j, `<a\zb>`, "azb")    // unknown escape: backslash dropped
+	parseEq(t, j, "<a\\\nb>", "a\nb") // backslash before a literal newline
 }
 
 func TestRejectUnknownEscape(t *testing.T) {
@@ -310,6 +311,49 @@ func TestNewlineTerminatedValue(t *testing.T) {
 	parseEq(t, j, "~a b\n", "a b")   // newline consumed
 	parseEq(t, j, "~a b\r\n", "a b") // CRLF consumed
 	parseEq(t, j, "~a b", "a b")     // EOF
+}
+
+func TestRegistersWithoutLexOrder(t *testing.T) {
+	// A direct Use (no Defaults merge) and no lex option must register
+	// cleanly using the default order, not panic.
+	j := tabnas.Make()
+	if err := j.Use(miniGrammar); err != nil {
+		t.Fatalf("miniGrammar: %v", err)
+	}
+	if err := j.Use(Hoover, map[string]any{
+		"block": []*Block{{
+			Name:  "tq",
+			Start: StartSpec{Fixed: []string{"'''"}},
+			End:   EndSpec{Fixed: []string{"'''"}},
+		}},
+	}); err != nil {
+		t.Fatalf("hoover Use: %v", err)
+	}
+	parseEq(t, j, `'''x'''`, "x")
+}
+
+func TestDoesNotMutateCallerBlocks(t *testing.T) {
+	block := &Block{
+		Name:  "tq",
+		Start: StartSpec{Fixed: []string{"'''"}},
+		End:   EndSpec{Fixed: []string{"'''"}},
+	}
+	j := tabnas.Make()
+	if err := j.Use(miniGrammar); err != nil {
+		t.Fatalf("miniGrammar: %v", err)
+	}
+	if err := j.UseDefaults(Hoover, Defaults, map[string]any{
+		"block": []*Block{block},
+	}); err != nil {
+		t.Fatalf("hoover Use: %v", err)
+	}
+	// The default token and token id are applied to an internal copy.
+	if block.Token != "" {
+		t.Errorf("caller block mutated: Token = %q, want empty", block.Token)
+	}
+	if block.tin != 0 {
+		t.Errorf("caller block mutated: tin = %d, want 0", block.tin)
+	}
 }
 
 func TestResolvesKeywordValues(t *testing.T) {
