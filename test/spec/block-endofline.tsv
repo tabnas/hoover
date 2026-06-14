@@ -1,6 +1,0 @@
-input	expected
-{a:x x\n}	{"a":"x x"}
-{a:hello\nb:world\n}	{"a":"hello","b":"world"}
-{a:one two\n}	{"a":"one two"}
-a:x x\n	{"a":"x x"}
-\na: x x\n	{"a":"x x"}

@@ -2,17 +2,16 @@
 
 
 import {
-  Jsonic,
+  Tabnas,
   Plugin,
   Config,
-  Options,
   Lex,
   Point,
   MakeLexMatcher,
   makePoint,
   Token,
   AltAction,
-} from 'jsonic'
+} from 'tabnas'
 
 
 type Block = {
@@ -86,15 +85,15 @@ function buildBlocks(blockDefs: Block[]): any[] {
 }
 
 
-const Hoover: Plugin = (jsonic: Jsonic, options: HooverOptions) => {
-  // Hoover extends the jsonic grammar's `val` rule. Fail fast with a clear
+const Hoover: Plugin = (am: Tabnas, options: HooverOptions) => {
+  // Hoover extends the host grammar's `val` rule. Fail fast with a clear
   // message if a grammar providing it has not been registered first, rather
   // than silently creating an empty `val` rule and failing confusingly later.
-  const rules: any = jsonic.rule()
+  const rules: any = am.rule()
   if (null == rules || null == rules.val) {
     throw new Error(
       "@jsonic/hoover: the 'val' rule is missing; " +
-        'register a jsonic grammar before the hoover plugin',
+        'register a grammar that defines it before the hoover plugin',
     )
   }
 
@@ -104,10 +103,10 @@ const Hoover: Plugin = (jsonic: Jsonic, options: HooverOptions) => {
 
   for (let block of blocks) {
     // Create a hoover token
-    block.TOKEN = jsonic.token(block.token)
+    block.TOKEN = am.token(block.token)
 
     if (!tokenMap[block.token]) {
-      jsonic.rule('val', (rs) => {
+      am.rule('val', (rs) => {
         rs.open({
           s: [block.TOKEN],
           a: options.action,
@@ -118,7 +117,7 @@ const Hoover: Plugin = (jsonic: Jsonic, options: HooverOptions) => {
     tokenMap[block.token] = block.TOKEN
   }
 
-  let makeHooverMatcher: MakeLexMatcher = (cfg: Config, _opts: Options) => {
+  let makeHooverMatcher: MakeLexMatcher = (cfg: Config, _opts) => {
     return function hooverMatcher(lex: Lex) {
       for (let block of blocks) {
         // TODO: Point.clone ?
@@ -153,7 +152,7 @@ const Hoover: Plugin = (jsonic: Jsonic, options: HooverOptions) => {
     }
   }
 
-  jsonic.options({
+  am.options({
     lex: {
       match: {
         hoover: { order: options.lex?.order, make: makeHooverMatcher },
@@ -327,7 +326,7 @@ function parseToEnd(
     }
 
     if (escapeChar === c) {
-      let replacement = block.escape![src[sI + 1]]
+      let replacement = block.escape ? block.escape[src[sI + 1]] : undefined
 
       if (null != replacement) {
         c = replacement

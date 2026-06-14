@@ -5,7 +5,7 @@ package hoover
 import (
 	"fmt"
 
-	jsonic "github.com/jsonicjs/jsonic/go"
+	tabnas "github.com/tabnas/parser/go"
 )
 
 const Version = "0.1.7"
@@ -22,7 +22,7 @@ type Block struct {
 	PreserveEscapeChar bool
 	Trim               bool
 
-	tin jsonic.Tin
+	tin tabnas.Tin
 }
 
 // EndSpec defines how a block ends.
@@ -48,7 +48,7 @@ type HooverRuleFilter struct {
 type HooverRuleSpec struct {
 	Parent  *HooverRuleFilter
 	Current *HooverRuleFilter
-	State   string // "" = don't check, "o"/"c"/"oc" = check; default "o"
+	State   string // "o"/"c"/"oc" = check; "" (unset) defaults to "o" (no "don't check", unlike TS)
 }
 
 // StartSpec defines how a block starts.
@@ -69,7 +69,7 @@ func (b *Block) allowUnknown() bool {
 }
 
 // Defaults contains the default Hoover plugin options, matching TS Hoover.defaults.
-// These are deep-merged with user-provided options by jsonic.UseDefaults().
+// These are deep-merged with user-provided options by tabnas.UseDefaults().
 var Defaults = map[string]any{
 	"lex": map[string]any{
 		"order": 4500000, // before string(5e6), number(7e6)
@@ -79,36 +79,48 @@ var Defaults = map[string]any{
 func buildBlocks(blockDefs []*Block) []*Block {
 	blocks := make([]*Block, len(blockDefs))
 	for i, block := range blockDefs {
-		if block.Token == "" {
-			block.Token = "#HV"
+		// Copy so applying defaults (and stashing the token id) does not
+		// mutate the caller's Block, matching the TS plugin which builds
+		// fresh block objects.
+		nb := *block
+		if nb.Token == "" {
+			nb.Token = "#HV"
 		}
-		blocks[i] = block
+		blocks[i] = &nb
 	}
 	return blocks
 }
 
 // Hoover is the plugin function, matching the TS Hoover plugin.
-// Use with jsonic.UseDefaults to apply Defaults automatically:
+// Use with tabnas.UseDefaults to apply Defaults automatically:
 //
 //	j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
 //	    "block": []*hoover.Block{ ... },
 //	})
-var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
-	// Hoover extends the jsonic grammar's `val` rule. Fail fast with a clear
+var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) (err error) {
+	// Never panic out of the plugin: convert any unexpected panic into a
+	// returned error, matching the engine's no-panic contract.
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("hoover: %v", r)
+		}
+	}()
+
+	// Hoover extends the host grammar's `val` rule. Fail fast with a clear
 	// error if a grammar providing it has not been registered first, rather
 	// than silently creating an empty `val` rule and failing confusingly later.
-	// (An Empty instance keeps the rule key but with no alternates, so check
+	// (An empty instance keeps the rule key but with no alternates, so check
 	// for usable open alternates, not just key presence.)
 	if val, ok := j.RSM()["val"]; !ok || val == nil || len(val.Open) == 0 {
 		return fmt.Errorf(
-			"hoover: the 'val' rule is missing; register the jsonic grammar before the hoover plugin")
+			"hoover: the 'val' rule is missing; register a grammar that defines it before the hoover plugin")
 	}
 
 	blockDefs, _ := opts["block"].([]*Block)
-	action, _ := opts["action"].(jsonic.AltAction)
+	action, _ := opts["action"].(tabnas.AltAction)
 
 	blocks := buildBlocks(blockDefs)
-	tokenMap := map[string]jsonic.Tin{}
+	tokenMap := map[string]tabnas.Tin{}
 
 	for _, block := range blocks {
 		tin := j.Token(block.Token)
@@ -116,9 +128,9 @@ var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 
 		if _, exists := tokenMap[block.Token]; !exists {
 			localTin := tin
-			j.Rule("val", func(rs *jsonic.RuleSpec, _ *jsonic.Parser) {
-				rs.PrependOpen(&jsonic.AltSpec{
-					S: [][]jsonic.Tin{{localTin}},
+			j.Rule("val", func(rs *tabnas.RuleSpec, _ *tabnas.Parser) {
+				rs.PrependOpen(&tabnas.AltSpec{
+					S: [][]tabnas.Tin{{localTin}},
 					A: action,
 				})
 			})
@@ -126,13 +138,20 @@ var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 		tokenMap[block.Token] = tin
 	}
 
-	makeHooverMatcher := func(cfg *jsonic.LexConfig, _opts *jsonic.Options) jsonic.LexMatcher {
-		var hooverMatcher jsonic.LexMatcher
-		hooverMatcher = func(lex *jsonic.Lex, rule *jsonic.Rule) *jsonic.Token {
+	makeHooverMatcher := func(cfg *tabnas.LexConfig, _opts *tabnas.Options) tabnas.LexMatcher {
+		var hooverMatcher tabnas.LexMatcher
+		hooverMatcher = func(lex *tabnas.Lex, rule *tabnas.Rule) (tkn *tabnas.Token) {
+			// Never panic out of the lexer: convert any unexpected panic into
+			// a bad token so Parse returns an error instead of crashing.
+			defer func() {
+				if r := recover(); r != nil {
+					tkn = lex.Bad("invalid_text")
+				}
+			}()
 			for _, block := range blocks {
 				pnt := lex.Cursor()
 
-				hvpnt := &jsonic.Point{
+				hvpnt := &tabnas.Point{
 					Len: pnt.Len,
 					SI:  pnt.SI,
 					RI:  pnt.RI,
@@ -146,13 +165,13 @@ var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 
 					if result.done {
 						src := lex.Src[pnt.SI:hvpnt.SI]
-						tkn := lex.Token(block.Token, block.tin, result.val, src)
+						out := lex.Token(block.Token, block.tin, result.val, src)
 
 						pnt.SI = hvpnt.SI
 						pnt.RI = hvpnt.RI
 						pnt.CI = hvpnt.CI
 
-						return tkn
+						return out
 					}
 
 					// Once a start matches, the block is committed: a failure to
@@ -170,11 +189,11 @@ var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 		return hooverMatcher
 	}
 
-	j.SetOptions(jsonic.Options{
-		Lex: &jsonic.LexOptions{
-			Match: map[string]*jsonic.MatchSpec{
+	j.SetOptions(tabnas.Options{
+		Lex: &tabnas.LexOptions{
+			Match: map[string]*tabnas.MatchSpec{
 				"hoover": {
-					Order: opts["lex"].(map[string]any)["order"].(int),
+					Order: lexOrder(opts),
 					Make:  makeHooverMatcher,
 				},
 			},
@@ -183,9 +202,22 @@ var Hoover jsonic.Plugin = func(j *jsonic.Jsonic, opts map[string]any) error {
 	return nil
 }
 
+// lexOrder reads the configured matcher order, defaulting to the Defaults
+// value when the lex option is absent or malformed. Mirrors the TS
+// `options.lex?.order`, so a direct Use (without UseDefaults merging
+// Defaults) registers cleanly instead of panicking.
+func lexOrder(opts map[string]any) int {
+	if lex, ok := opts["lex"].(map[string]any); ok {
+		if order, ok := lex["order"].(int); ok {
+			return order
+		}
+	}
+	return 4500000
+}
+
 func matchStart(
-	lex *jsonic.Lex,
-	hvpnt *jsonic.Point,
+	lex *tabnas.Lex,
+	hvpnt *tabnas.Point,
 	block *Block,
 ) startResult {
 	src := lex.Src
@@ -302,10 +334,10 @@ func matchStart(
 }
 
 func parseToEnd(
-	lex *jsonic.Lex,
-	hvpnt *jsonic.Point,
+	lex *tabnas.Lex,
+	hvpnt *tabnas.Point,
 	block *Block,
-	cfg *jsonic.LexConfig,
+	cfg *tabnas.LexConfig,
 ) parseResult {
 	var valc []byte
 
@@ -382,12 +414,17 @@ func parseToEnd(
 
 		// Handle escape sequences
 		if escapeChar != 0 && c == escapeChar && sI+1 < len(src) {
-			nextChar := string(src[sI+1])
+			escaped := src[sI+1]
+			nextChar := string(escaped)
 			if block.Escape != nil {
 				if replacement, ok := block.Escape[nextChar]; ok {
 					valc = append(valc, []byte(replacement)...)
 					sI += 2
 					cI += 2
+					if replacement == "\n" {
+						rI++
+						cI = 1
+					}
 					continue
 				}
 			}
@@ -395,9 +432,13 @@ func parseToEnd(
 				if block.PreserveEscapeChar {
 					valc = append(valc, c)
 				}
-				valc = append(valc, src[sI+1])
+				valc = append(valc, escaped)
 				sI += 2
 				cI += 2
+				if escaped == '\n' {
+					rI++
+					cI = 1
+				}
 				continue
 			}
 			return parseResult{

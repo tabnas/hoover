@@ -40,6 +40,6 @@
     "typescript": "6.0.3"
   },
   "peerDependencies": {
-    "jsonic": ">=2"
+    "tabnas": ">=2"
   }
 }

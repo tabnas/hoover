@@ -1,9 +1,10 @@
 # @jsonic/hoover
 
-A [Jsonic](https://github.com/jsonicjs/jsonic) syntax plugin that adds
-configurable block-delimited string parsing. Define custom string
-formats with start/end delimiters, escape sequences, and
-context-sensitive matching.
+A [tabnas](https://github.com/tabnas/parser) parser-engine syntax plugin
+that adds configurable block-delimited string parsing. Define custom
+string formats with start/end delimiters, escape sequences, and
+context-sensitive matching. Its only dependency is the engine; it
+extends whatever grammar you register.
 
 Available for [TypeScript](doc/hoover-ts.md) and [Go](doc/hoover-go.md).
 
@@ -24,8 +25,8 @@ Learn by building working examples from scratch.
 
 - [Parse triple-quoted strings (TypeScript)](doc/hoover-ts.md#parse-triple-quoted-strings)
 - [Parse triple-quoted strings (Go)](doc/hoover-go.md#parse-triple-quoted-strings)
-- [Parse end-of-line values with comments (TypeScript)](doc/hoover-ts.md#parse-end-of-line-values-with-comments)
-- [Parse end-of-line values with comments (Go)](doc/hoover-go.md#parse-end-of-line-values-with-comments)
+- [Parse a value up to a terminator (TypeScript)](doc/hoover-ts.md#parse-a-value-up-to-a-terminator)
+- [Parse a value up to a terminator (Go)](doc/hoover-go.md#parse-a-value-up-to-a-terminator)
 
 
 ## How-to guides
@@ -57,24 +58,26 @@ Complete API documentation for each language.
 
 Parse triple-quoted strings that preserve internal whitespace and newlines:
 
+hoover extends a grammar you supply (`myGrammar` below must define the
+`val` rule; the engine ships none).
+
 **TypeScript**
 ```typescript
-const j = Jsonic.make().use(Hoover, {
-  block: [
-    {
-      name: 'triplequote',
-      start: { fixed: "'''" },
-      end: { fixed: "'''" },
-    },
-  ],
-})
+const j = new Tabnas()
+  .use(myGrammar)
+  .use(Hoover, {
+    block: [
+      { name: 'triplequote', start: { fixed: "'''" }, end: { fixed: "'''" } },
+    ],
+  })
 
-j("{a: '''hello world'''}") // { a: 'hello world' }
+j.parse("'''hello world'''") // "hello world"
 ```
 
 **Go**
 ```go
-j := jsonic.Make()
+j := tabnas.Make()
+j.Use(myGrammar)
 j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
   "block": []*hoover.Block{
     {
@@ -85,7 +88,7 @@ j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
   },
 })
 
-j.Parse("{a: '''hello world'''}") // map[string]any{"a": "hello world"}
+j.Parse("'''hello world'''") // "hello world"
 ```
 
 

@@ -1,4 +1,0 @@
-input	expected
-x:a#b	{"x":"a"}
-x:hello #comment	{"x":"hello"}
-x:no-comment\n	{"x":"no-comment"}

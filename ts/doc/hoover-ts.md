@@ -1,74 +1,78 @@
-# Hoover plugin for Jsonic (TypeScript)
+# Hoover plugin for the tabnas parser (TypeScript)
 
-A Jsonic syntax plugin that adds configurable block-delimited string
-parsing with custom start/end delimiters, escape handling, and
-rule-context matching.
+A syntax plugin that adds configurable block-delimited string parsing —
+custom start/end delimiters, escape handling, and rule-context matching
+— to the [tabnas](https://github.com/tabnas/parser) parser engine.
 
 ```bash
 npm install @jsonic/hoover
 ```
 
-Requires `jsonic` >= 2 as a peer dependency.
+Requires `tabnas` >= 2 as a peer dependency. hoover's only dependency is
+the engine. The engine ships no grammar, and hoover is grammar-agnostic:
+it adds an alternate to the `val` rule, so register a grammar that
+defines `val` **first**, then the hoover plugin.
+
+```ts
+import { Tabnas } from 'tabnas'
+import { Hoover } from '@jsonic/hoover'
+
+const j = new Tabnas()
+  .use(myGrammar) // your grammar plugin; must define the `val` rule
+  .use(Hoover, { block: [ /* ... */ ] })
+```
+
+`block` is an ordered array; blocks are tried in array order. If the
+`val` rule is absent, `use(Hoover, …)` throws a clear error.
+
+The examples below assume a grammar that parses a single value, plus a
+parenthesised `group`, like the runnable
+[`test/minigrammar.ts`](../test/minigrammar.ts) used by the test suite.
 
 
 ## Tutorials
 
 ### Parse triple-quoted strings
 
-Add support for `'''...'` strings that preserve whitespace and newlines:
+Add support for `'''...'''` strings that preserve internal whitespace
+and newlines:
 
 ```typescript
-import { Jsonic } from 'jsonic'
-import { Hoover } from '@jsonic/hoover'
+const j = new Tabnas()
+  .use(myGrammar)
+  .use(Hoover, {
+    block: [
+      { name: 'triplequote', start: { fixed: "'''" }, end: { fixed: "'''" } },
+    ],
+  })
 
-const j = Jsonic.make().use(Hoover, {
-  block: [
-    {
-      name: 'triplequote',
-      start: { fixed: "'''" },
-      end: { fixed: "'''" },
-    },
-  ],
-})
-
-j("{a: '''hello world'''}")     // { a: 'hello world' }
-j("'''line1\nline2'''")         // 'line1\nline2'
-j("{a: '''\n  indented\n'''}") // { a: '\n  indented\n' }
+j.parse("'''hello world'''")  // "hello world"  (spaces preserved)
+j.parse("'''line1\nline2'''") // "line1\nline2" (newlines preserved)
+j.parse("('''x''')")          // "x"            (nested in a group)
 ```
 
-### Parse end-of-line values with comments
+### Parse a value up to a terminator
 
-Capture unquoted values (including spaces) up to end-of-line, with
-`#` and `;` as comment/end markers:
+Capture an unquoted value (including spaces) up to a terminator or
+end-of-input. Listing `''` among the end delimiters lets the value run
+to EOF:
 
 ```typescript
-import { Jsonic } from 'jsonic'
-import { Hoover } from '@jsonic/hoover'
-
-const j = Jsonic.make().use(Hoover, {
-  lex: { order: 7.5e6 },  // after string and number matchers
-  block: [
-    {
-      name: 'endofline',
-      start: {
-        rule: {
-          parent: { include: ['pair', 'elem'] },
-        }
+const j = new Tabnas()
+  .use(myGrammar)
+  .use(Hoover, {
+    block: [
+      {
+        name: 'line',
+        start: { fixed: '~' },
+        end: { fixed: [';', ''] },
+        trim: true,
       },
-      end: {
-        fixed: ['\n', '\r\n', '#', ';', ''],
-        consume: ['\n', '\r\n'],
-      },
-      escapeChar: '\\',
-      escape: { '#': '#', ';': ';', '\\': '\\' },
-      trim: true,
-    },
-  ],
-})
+    ],
+  })
 
-j("a: hello world\n")  // { a: 'hello world' }
-j("x: value # comment") // { x: 'value' }
-j("x: a\\#b")           // { x: 'a#b' }
+j.parse("~hello world;") // "hello world" (terminator)
+j.parse("~ trimmed ")    // "trimmed"     (EOF, edges trimmed)
 ```
 
 
@@ -77,19 +81,16 @@ j("x: a\\#b")           // { x: 'a#b' }
 ### Control delimiter consumption
 
 By default, both start and end delimiters are consumed (removed from
-the source). Use `consume` to change this:
+the output). Use `consume` to change this:
 
 ```typescript
-// Don't consume the end delimiter (leave it for another matcher)
-end: {
-  fixed: ['#', ';'],
-  consume: false,
-}
+// Don't consume the start delimiter (leave it for another matcher)
+start: { fixed: '[', consume: false }
 
 // Selectively consume only some end delimiters
 end: {
-  fixed: ['\n', '\r\n', '#', ';'],
-  consume: ['\n', '\r\n'],  // consume newlines, leave # and ; alone
+  fixed: [';', '#', ''],
+  consume: [';'],  // consume ';', leave '#' for another matcher
 }
 ```
 
@@ -111,24 +112,29 @@ block: [
       '\\': '\\',   // \\ → backslash
       '>': '>',     // \> → literal >
     },
-    allowUnknownEscape: false,  // reject unrecognized \x sequences
-    preserveEscapeChar: false,  // strip the \ from output
+    allowUnknownEscape: false,  // reject unrecognized \x sequences (default: true)
+    preserveEscapeChar: false,  // strip the \ from output (default)
   },
 ]
 ```
 
+`escapeChar` may be set without an `escape` map; unknown escapes then
+follow `allowUnknownEscape` / `preserveEscapeChar`. A rejected escape
+throws an `invalid_escape` parse error.
+
 ### Restrict matching by rule context
 
-Use `start.rule` to limit when a block matches based on the current
-parser rule state:
+Use `start.rule` to limit when a block matches, based on the rule the
+parser is in when the lexer reaches the block. The rule names are
+whatever your grammar defines (e.g. `group`, or `pair`/`elem` in a
+JSON-like grammar):
 
 ```typescript
 start: {
   rule: {
-    parent: { include: ['pair', 'elem'] },  // only in object pairs or array elements
-    // parent: { exclude: ['val'] },        // or exclude specific rules
-    // current: { include: ['val'] },       // filter on current rule
-    // state: 'o',                          // 'o' = open (default), 'c' = close, '' = don't check
+    parent: { include: ['group'] },  // only when the current rule's parent is `group`
+    // current: { include: ['val'] },
+    // state: 'o',                    // 'o' = open (default), 'c' = close, '' = don't check
   }
 }
 ```
@@ -138,17 +144,17 @@ start: {
 
 ### How hoover matching works
 
-Hoover is a grammar-dependent plugin: it adds an alternate to Jsonic's
-`val` rule, so a grammar providing that rule must be registered first.
-`Jsonic.make()` supplies it, so `Jsonic.make().use(Hoover, …)` is all
-you need. If the `val` rule is absent (for example on an `empty()`
-instance), `use` throws a clear error rather than silently creating an
-empty rule and failing later.
+Hoover is a grammar-dependent plugin: it adds an alternate to the host
+grammar's `val` rule, so a grammar providing that rule must be
+registered first (the engine ships none). If the `val` rule is missing
+(for example on a bare `new Tabnas()` instance), `use(Hoover, …)` throws
+a clear error rather than silently creating an empty rule and failing
+later.
 
-Hoover registers a custom lexer matcher in Jsonic's tokenization
-pipeline. When the lexer encounters text, the matcher:
+Hoover registers a custom lexer matcher in the tokenization pipeline.
+When the lexer encounters text, the matcher:
 
-1. Iterates through configured blocks in definition order.
+1. Iterates through configured blocks in array order.
 2. For each block, checks the **rule context** (parent rule,
    current rule, rule state) against `start.rule` filters.
 3. Checks for a **start delimiter** match if `start.fixed` is set.
@@ -157,14 +163,24 @@ pipeline. When the lexer encounters text, the matcher:
    the way.
 5. Produces a hoover token (`#HV` by default) with the parsed value.
 
+Once a start matches, the block is committed: if no end delimiter is
+reached, or an escape is rejected, the matcher returns a bad token
+rather than falling through to the next block.
+
+A hoovered value that matches a keyword the host grammar defines
+(via `value.def`, e.g. `true`/`false`/`null`) resolves to that value
+rather than the string — but only when the host grammar enables value
+lexing and defines those keywords. The bare engine defines none, so
+plain text stays a string unless your grammar opts in.
+
 ### Matcher ordering
 
-The `lex.order` option controls where hoover runs relative to
-Jsonic's built-in matchers:
+The `lex.order` option controls where hoover runs relative to the
+engine's built-in matchers:
 
 | Order | Matcher |
 |-------|---------|
-| 2e6 | Fixed tokens (`{`, `}`, `[`, `]`, `:`, `,`) |
+| 2e6 | Fixed tokens |
 | 3e6 | Spaces |
 | 4e6 | Lines |
 | **4.5e6** | **Hoover (default)** |
@@ -174,15 +190,16 @@ Jsonic's built-in matchers:
 | 8e6 | Text |
 
 Use a lower order to run before built-in matchers (e.g. triple-quote
-before string), or a higher order to run after (e.g. end-of-line at
-7.5e6, after strings and numbers but before text).
+before strings), or a higher order to run after (e.g. an end-of-line
+value at `7.5e6`, after strings and numbers but before text).
 
 
 ## Reference
 
 ### `Hoover` (Plugin)
 
-The plugin function. Register with `Jsonic.make().use(Hoover, options)`.
+The plugin function. Register with `new Tabnas().use(Hoover, options)`,
+after a grammar that defines the `val` rule.
 
 ### `HooverOptions`
 
