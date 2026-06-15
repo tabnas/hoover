@@ -66,12 +66,12 @@ Tests run against compiled output in `dist-test/`, so always
   `test/hoover.test.ts` and `../go/hoover_test.go` together.
 - Row/column tracking follows the tabnas engine convention: columns are
   1-based and reset to `1` (not `0`) after a newline.
-- The plugin/rule API is the engine's: `am.token(name)` mints a token,
-  `am.rule('val', rs => rs.open({ s: [TOKEN], a }))` prepends the
+- The plugin/rule API is the engine's: `tn.token(name)` mints a token,
+  `tn.rule('val', rs => rs.open({ s: [TOKEN], a }))` prepends the
   hoover alternate, and matchers are registered via
-  `am.options({ lex: { match: { hoover: { order, make } } } })`.
+  `tn.options({ lex: { match: { hoover: { order, make } } } })`.
 - Hoover depends on the host grammar's `val` rule. Register it on a
-  grammar-bearing instance; the plugin inspects `am.rule()` up front and
+  grammar-bearing instance; the plugin inspects `tn.rule()` up front and
   **throws** a clear error if `val` is missing, instead of silently
   creating an empty rule.
 - `escapeChar` may be set without an `escape` map — guard `block.escape`

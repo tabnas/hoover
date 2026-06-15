@@ -85,11 +85,11 @@ function buildBlocks(blockDefs: Block[]): any[] {
 }
 
 
-const Hoover: Plugin = (am: Tabnas, options: HooverOptions) => {
+const Hoover: Plugin = (tn: Tabnas, options: HooverOptions) => {
   // Hoover extends the host grammar's `val` rule. Fail fast with a clear
   // message if a grammar providing it has not been registered first, rather
   // than silently creating an empty `val` rule and failing confusingly later.
-  const rules: any = am.rule()
+  const rules: any = tn.rule()
   if (null == rules || null == rules.val) {
     throw new Error(
       "@tabnas/hoover: the 'val' rule is missing; " +
@@ -103,10 +103,10 @@ const Hoover: Plugin = (am: Tabnas, options: HooverOptions) => {
 
   for (let block of blocks) {
     // Create a hoover token
-    block.TOKEN = am.token(block.token)
+    block.TOKEN = tn.token(block.token)
 
     if (!tokenMap[block.token]) {
-      am.rule('val', (rs) => {
+      tn.rule('val', (rs) => {
         rs.open({
           s: [block.TOKEN],
           a: options.action,
@@ -152,7 +152,7 @@ const Hoover: Plugin = (am: Tabnas, options: HooverOptions) => {
     }
   }
 
-  am.options({
+  tn.options({
     lex: {
       match: {
         hoover: { order: options.lex?.order, make: makeHooverMatcher },

@@ -135,9 +135,9 @@ describe('hoover', () => {
   })
 
   test('custom token name', () => {
-    const am = new Tabnas()
-    am.use(miniGrammar)
-    am.use(Hoover, {
+    const tn = new Tabnas()
+    tn.use(miniGrammar)
+    tn.use(Hoover, {
       block: [
         {
           name: 'tq',
@@ -147,15 +147,15 @@ describe('hoover', () => {
         },
       ],
     })
-    deepEqual(am.parse(`'''x'''`), 'x')
+    deepEqual(tn.parse(`'''x'''`), 'x')
   })
 
   test('fail fast on missing grammar', () => {
     // Registering hoover on a bare engine (no grammar, no `val` rule)
     // throws a clear error instead of failing confusingly later.
-    const am = new Tabnas()
+    const tn = new Tabnas()
     throws(() =>
-      am.use(Hoover, {
+      tn.use(Hoover, {
         block: [
           { name: 'tq', start: { fixed: `'''` }, end: { fixed: `'''` } },
         ],

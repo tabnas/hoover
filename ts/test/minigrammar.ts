@@ -15,8 +15,8 @@ import { Hoover } from '../dist/hoover'
 // parent — enough to test rule-context (parent) matching. hoover
 // registers its block token as an extra `val` alternate, so the engine's
 // `val` rule is the integration point.
-export function miniGrammar(am: Tabnas) {
-  am.options({
+export function miniGrammar(tn: Tabnas) {
+  tn.options({
     fixed: { token: { '#OP': '(', '#CP': ')' } },
     rule: { start: 'val' },
     // Define a few keyword values so value resolution is deterministic.
@@ -24,11 +24,11 @@ export function miniGrammar(am: Tabnas) {
       def: { true: { val: true }, false: { val: false }, null: { val: null } },
     },
   })
-  am.token('#OP')
-  am.token('#CP')
+  tn.token('#OP')
+  tn.token('#CP')
 
   // val: a scalar value, or a parenthesised group.
-  am.rule('val', (rs: any) => {
+  tn.rule('val', (rs: any) => {
     rs.bo((r: any) => {
       r.node = undefined
     })
@@ -50,7 +50,7 @@ export function miniGrammar(am: Tabnas) {
   })
 
   // group: '(' value ')' — yields the inner value.
-  am.rule('group', (rs: any) => {
+  tn.rule('group', (rs: any) => {
     rs.bc((r: any) => {
       r.node = r.child.node
     })
@@ -62,8 +62,8 @@ export function miniGrammar(am: Tabnas) {
 // makeMini builds a bare engine, installs the mini grammar (the
 // dependency), then the hoover plugin with the given blocks/options.
 export function makeMini(opts: any): Tabnas {
-  const am = new Tabnas()
-  am.use(miniGrammar)
-  am.use(Hoover, opts)
-  return am
+  const tn = new Tabnas()
+  tn.use(miniGrammar)
+  tn.use(Hoover, opts)
+  return tn
 }
