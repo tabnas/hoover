@@ -6,7 +6,7 @@ package — and the one you change first. It is a single
 block-delimited string parsing: custom start/end delimiters, escape
 handling, and rule-context matching.
 
-hoover's only dependency is the tabnas engine (`tabnas` >= 2, a peer
+hoover's only dependency is the tabnas engine (`@tabnas/parser` >= 2, a peer
 dependency). It is grammar-agnostic: it registers a custom lexer matcher
 and prepends a `val`-rule alternate on the host instance, so a grammar
 defining `val` must already be registered.

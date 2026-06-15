@@ -11,7 +11,7 @@ import {
   makePoint,
   Token,
   AltAction,
-} from 'tabnas'
+} from '@tabnas/parser'
 
 
 type Block = {

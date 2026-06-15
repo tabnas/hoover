@@ -3,7 +3,7 @@
 import { test, describe } from 'node:test'
 import { deepEqual, throws } from 'node:assert'
 
-import { Tabnas } from 'tabnas'
+import { Tabnas } from '@tabnas/parser'
 import { Hoover } from '../dist/hoover'
 import { makeMini, miniGrammar } from './minigrammar'
 

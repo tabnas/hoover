@@ -1,6 +1,6 @@
 /* Copyright (c) 2021-2026 Richard Rodger and other contributors, MIT License */
 
-import { Tabnas } from 'tabnas'
+import { Tabnas } from '@tabnas/parser'
 import { Hoover } from '../dist/hoover'
 
 // miniGrammar is a deliberately tiny, bespoke grammar — not JSON — that

@@ -8,13 +8,13 @@ custom start/end delimiters, escape handling, and rule-context matching
 npm install @tabnas/hoover
 ```
 
-Requires `tabnas` >= 2 as a peer dependency. hoover's only dependency is
+Requires `@tabnas/parser` >= 2 as a peer dependency. hoover's only dependency is
 the engine. The engine ships no grammar, and hoover is grammar-agnostic:
 it adds an alternate to the `val` rule, so register a grammar that
 defines `val` **first**, then the hoover plugin.
 
 ```ts
-import { Tabnas } from 'tabnas'
+import { Tabnas } from '@tabnas/parser'
 import { Hoover } from '@tabnas/hoover'
 
 const j = new Tabnas()
