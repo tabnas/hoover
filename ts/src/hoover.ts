@@ -92,7 +92,7 @@ const Hoover: Plugin = (am: Tabnas, options: HooverOptions) => {
   const rules: any = am.rule()
   if (null == rules || null == rules.val) {
     throw new Error(
-      "@jsonic/hoover: the 'val' rule is missing; " +
+      "@tabnas/hoover: the 'val' rule is missing; " +
         'register a grammar that defines it before the hoover plugin',
     )
   }

@@ -1,4 +1,4 @@
-# Agents Guide — @jsonic/hoover
+# Agents Guide — @tabnas/hoover
 
 ## What this project is
 
@@ -22,8 +22,8 @@ the design:
 
 | Path | What it is |
 |---|---|
-| [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@jsonic/hoover` npm package. A single plugin in `ts/src/hoover.ts`. Peer-depends only on the tabnas engine (`tabnas` >= 2). |
-| [`go/`](go/) | Go port — module `github.com/jsonicjs/hoover/go`, a single `hoover.go`. Depends only on the tabnas engine (`github.com/tabnas/parser/go`). |
+| [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@tabnas/hoover` npm package. A single plugin in `ts/src/hoover.ts`. Peer-depends only on the tabnas engine (`tabnas` >= 2). |
+| [`go/`](go/) | Go port — module `github.com/tabnas/hoover/go`, a single `hoover.go`. Depends only on the tabnas engine (`github.com/tabnas/parser/go`). |
 
 Each implementation's only production dependency is the engine; both
 bring their own tiny test grammar (`val` + a parenthesised `group`).

@@ -1,4 +1,4 @@
-# @jsonic/hoover
+# @tabnas/hoover
 
 A syntax plugin for the [tabnas](https://github.com/tabnas/parser)
 parser engine that adds string *hoovering* — block-delimited strings

@@ -5,7 +5,7 @@ custom start/end delimiters, escape handling, and rule-context matching
 — to the [tabnas](https://github.com/tabnas/parser) parser engine.
 
 ```bash
-npm install @jsonic/hoover
+npm install @tabnas/hoover
 ```
 
 Requires `tabnas` >= 2 as a peer dependency. hoover's only dependency is
@@ -15,7 +15,7 @@ defines `val` **first**, then the hoover plugin.
 
 ```ts
 import { Tabnas } from 'tabnas'
-import { Hoover } from '@jsonic/hoover'
+import { Hoover } from '@tabnas/hoover'
 
 const j = new Tabnas()
   .use(myGrammar) // your grammar plugin; must define the `val` rule

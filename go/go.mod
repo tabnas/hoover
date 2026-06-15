@@ -1,5 +1,7 @@
-module github.com/jsonicjs/hoover/go
+module github.com/tabnas/hoover/go
 
 go 1.24.7
 
-require github.com/tabnas/parser/go v0.0.0-20260614232022-4b486205e191
+require github.com/tabnas/parser/go v0.0.0
+
+replace github.com/tabnas/parser/go => ../../parser/go

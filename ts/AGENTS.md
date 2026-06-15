@@ -1,6 +1,6 @@
-# Agents Guide — @jsonic/hoover (TypeScript)
+# Agents Guide — @tabnas/hoover (TypeScript)
 
-This is the **canonical** implementation — the `@jsonic/hoover` npm
+This is the **canonical** implementation — the `@tabnas/hoover` npm
 package — and the one you change first. It is a single
 [tabnas](https://github.com/tabnas/parser) syntax plugin that adds
 block-delimited string parsing: custom start/end delimiters, escape

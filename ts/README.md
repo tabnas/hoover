@@ -1,4 +1,4 @@
-# @jsonic/hoover
+# @tabnas/hoover
 
 A [tabnas](https://github.com/tabnas/parser) parser-engine syntax plugin
 that adds configurable block-delimited string parsing. Define custom
@@ -8,12 +8,12 @@ extends whatever grammar you register.
 
 Available for [TypeScript](doc/hoover-ts.md) and [Go](doc/hoover-go.md).
 
-[![npm version](https://img.shields.io/npm/v/@jsonic/hoover.svg)](https://npmjs.com/package/@jsonic/hoover)
-[![build](https://github.com/jsonicjs/hoover/actions/workflows/build.yml/badge.svg)](https://github.com/jsonicjs/hoover/actions/workflows/build.yml)
-[![Coverage Status](https://coveralls.io/repos/github/jsonicjs/hoover/badge.svg?branch=main)](https://coveralls.io/github/jsonicjs/hoover?branch=main)
-[![Known Vulnerabilities](https://snyk.io/test/github/jsonicjs/hoover/badge.svg)](https://snyk.io/test/github/jsonicjs/hoover)
+[![npm version](https://img.shields.io/npm/v/@tabnas/hoover.svg)](https://npmjs.com/package/@tabnas/hoover)
+[![build](https://github.com/tabnas/hoover/actions/workflows/build.yml/badge.svg)](https://github.com/tabnas/hoover/actions/workflows/build.yml)
+[![Coverage Status](https://coveralls.io/repos/github/tabnas/hoover/badge.svg?branch=main)](https://coveralls.io/github/tabnas/hoover?branch=main)
+[![Known Vulnerabilities](https://snyk.io/test/github/tabnas/hoover/badge.svg)](https://snyk.io/test/github/tabnas/hoover)
 [![DeepScan grade](https://deepscan.io/api/teams/5016/projects/22466/branches/663906/badge/grade.svg)](https://deepscan.io/dashboard#view=project&tid=5016&pid=22466&bid=663906)
-[![Maintainability](https://api.codeclimate.com/v1/badges/10e9bede600896c77ce8/maintainability)](https://codeclimate.com/github/jsonicjs/hoover/maintainability)
+[![Maintainability](https://api.codeclimate.com/v1/badges/10e9bede600896c77ce8/maintainability)](https://codeclimate.com/github/tabnas/hoover/maintainability)
 
 | ![Voxgig](https://www.voxgig.com/res/img/vgt01r.png) | This open source module is sponsored and supported by [Voxgig](https://www.voxgig.com). |
 | ---------------------------------------------------- | --------------------------------------------------------------------------------------- |

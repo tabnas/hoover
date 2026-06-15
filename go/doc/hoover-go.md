@@ -7,12 +7,12 @@ custom start/end delimiters, escape handling, and rule-context matching
 ```go
 import (
   tabnas "github.com/tabnas/parser/go"
-  hoover "github.com/jsonicjs/hoover/go"
+  hoover "github.com/tabnas/hoover/go"
 )
 ```
 
 ```bash
-go get github.com/jsonicjs/hoover/go
+go get github.com/tabnas/hoover/go
 ```
 
 hoover's only dependency is the engine. The engine ships no grammar, and

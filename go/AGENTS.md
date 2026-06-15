@@ -1,7 +1,7 @@
-# Agents Guide — @jsonic/hoover (Go)
+# Agents Guide — @tabnas/hoover (Go)
 
-A Go port of `@jsonic/hoover`, the syntax plugin for block-delimited
-string parsing. This is module `github.com/jsonicjs/hoover/go`, a single
+A Go port of `@tabnas/hoover`, the syntax plugin for block-delimited
+string parsing. This is module `github.com/tabnas/hoover/go`, a single
 `hoover.go`, and its **only production dependency is the
 [tabnas](https://github.com/tabnas/parser) parser engine**
 (`github.com/tabnas/parser/go`, imported as `tabnas`). The engine
@@ -19,7 +19,7 @@ alone.
 The TypeScript implementation (`../ts/src/hoover.ts`) is canonical for
 parse behavior. When porting or fixing, read the TS source first and
 mirror it. The TS suite is the parity reference; it runs the shared
-`../test/spec/*.tsv` fixtures against the real jsonic grammar. The Go
+`../test/spec/*.tsv` fixtures against the real tabnas grammar. The Go
 side has no JSON grammar dependency, so it cannot run those JSON
 fixtures — instead it verifies the same plugin behaviors (delimiters,
 escapes, trim, consume, EOF, rule-context) against a tiny local grammar.

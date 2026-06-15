@@ -2,7 +2,7 @@
 
 Version: 0.1.7
 
-A Go port of [@jsonic/hoover](https://github.com/jsonicjs/hoover), a
+A Go port of [@tabnas/hoover](https://github.com/tabnas/hoover), a
 syntax plugin for the [tabnas](https://github.com/tabnas/parser) parser
 engine that adds configurable block-delimited string parsing. Define
 custom string formats with start/end delimiters, escape sequences, and
@@ -17,7 +17,7 @@ returns a clear error if that rule is absent.
 ## Install
 
 ```bash
-go get github.com/jsonicjs/hoover/go@latest
+go get github.com/tabnas/hoover/go@latest
 ```
 
 ## Quick Example
@@ -29,7 +29,7 @@ import (
     "fmt"
 
     tabnas "github.com/tabnas/parser/go"
-    hoover "github.com/jsonicjs/hoover/go"
+    hoover "github.com/tabnas/hoover/go"
 )
 
 func main() {
