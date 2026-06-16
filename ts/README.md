@@ -92,6 +92,65 @@ j.Parse("'''hello world'''") // "hello world"
 ```
 
 
+### Runnable example
+
+A complete, self-contained example. hoover needs a host grammar that
+defines the `val` rule, so this registers a tiny inline grammar (the
+same shape as the test suite's `minigrammar.ts`: a single value, plus a
+parenthesised `group`) before the hoover plugin, then parses
+triple-quoted strings.
+
+```js
+const { Tabnas } = require('@tabnas/parser')
+const { Hoover } = require('@tabnas/hoover')
+
+// Tiny host grammar defining the `val` rule hoover plugs into.
+function grammar(tn) {
+  tn.options({
+    fixed: { token: { '#OP': '(', '#CP': ')' } },
+    rule: { start: 'val' },
+  })
+  tn.token('#OP')
+  tn.token('#CP')
+
+  // val: a scalar value, or a parenthesised group.
+  tn.rule('val', (rs) => {
+    rs.bo((r) => { r.node = undefined })
+    rs.bc((r, ctx) => {
+      r.node =
+        undefined === r.node
+          ? undefined === r.child.node
+            ? 0 === r.os
+              ? undefined
+              : r.o0.resolveVal(r, ctx)
+            : r.child.node
+          : r.node
+    })
+    rs.open([{ s: '#OP', p: 'group', b: 1 }, { s: '#VAL' }])
+    rs.close([{ s: '#ZZ' }, { s: '#CP', b: 1 }])
+  })
+
+  // group: '(' value ')' — yields the inner value.
+  tn.rule('group', (rs) => {
+    rs.bc((r) => { r.node = r.child.node })
+    rs.open([{ s: '#OP', p: 'val' }])
+    rs.close([{ s: '#CP' }])
+  })
+}
+
+const j = new Tabnas()
+  .use(grammar)
+  .use(Hoover, {
+    block: [
+      { name: 'triplequote', start: { fixed: "'''" }, end: { fixed: "'''" } },
+    ],
+  })
+
+j.parse("'''hello world'''")   // => "hello world"
+j.parse("('''x''')")           // => "x"
+```
+
+
 ## License
 
 MIT. Copyright (c) Richard Rodger and other contributors.
