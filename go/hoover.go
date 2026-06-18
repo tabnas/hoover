@@ -8,7 +8,7 @@ import (
 	tabnas "github.com/tabnas/parser/go"
 )
 
-const Version = "0.1.7"
+const Version = "0.2.0"
 
 // Block defines a hoover block configuration.
 type Block struct {
