@@ -29,18 +29,18 @@ import (
     "fmt"
 
     tabnas "github.com/tabnas/parser/go"
-    hoover "github.com/tabnas/hoover/go"
+    tabnashoover "github.com/tabnas/hoover/go"
 )
 
 func main() {
     j := tabnas.Make()
     j.Use(myGrammar) // your grammar plugin; must define the `val` rule
-    j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
-        "block": []*hoover.Block{
+    j.UseDefaults(tabnashoover.Hoover, tabnashoover.Defaults, map[string]any{
+        "block": []*tabnashoover.Block{
             {
                 Name:  "triplequote",
-                Start: hoover.StartSpec{Fixed: []string{"'''"}},
-                End:   hoover.EndSpec{Fixed: []string{"'''"}},
+                Start: tabnashoover.StartSpec{Fixed: []string{"'''"}},
+                End:   tabnashoover.EndSpec{Fixed: []string{"'''"}},
             },
         },
     })
