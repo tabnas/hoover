@@ -7,7 +7,7 @@ custom start/end delimiters, escape handling, and rule-context matching
 ```go
 import (
   tabnas "github.com/tabnas/parser/go"
-  hoover "github.com/tabnas/hoover/go"
+  tabnashoover "github.com/tabnas/hoover/go"
 )
 ```
 
@@ -18,18 +18,18 @@ go get github.com/tabnas/hoover/go
 hoover's only dependency is the engine. The engine ships no grammar, and
 hoover is grammar-agnostic: it adds an alternate to the `val` rule, so
 register a grammar that defines `val` **first**, then the hoover plugin.
-Register hoover with `UseDefaults`, which deep-merges `hoover.Defaults`
+Register hoover with `UseDefaults`, which deep-merges `tabnashoover.Defaults`
 (the default lex order) under your options:
 
 ```go
 j := tabnas.Make()
 j.Use(myGrammar) // your grammar plugin; must define the `val` rule
-j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
-  "block": []*hoover.Block{ /* ... */ },
+j.UseDefaults(tabnashoover.Hoover, tabnashoover.Defaults, map[string]any{
+  "block": []*tabnashoover.Block{ /* ... */ },
 })
 ```
 
-`block` is an ordered `[]*hoover.Block`; blocks are tried in array
+`block` is an ordered `[]*tabnashoover.Block`; blocks are tried in array
 order. If the `val` rule is absent, `UseDefaults` returns a clear error.
 
 The examples below assume a grammar that parses a single value, plus a
@@ -47,12 +47,12 @@ and newlines:
 ```go
 j := tabnas.Make()
 j.Use(myGrammar)
-j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
-  "block": []*hoover.Block{
+j.UseDefaults(tabnashoover.Hoover, tabnashoover.Defaults, map[string]any{
+  "block": []*tabnashoover.Block{
     {
       Name:  "triplequote",
-      Start: hoover.StartSpec{Fixed: []string{"'''"}},
-      End:   hoover.EndSpec{Fixed: []string{"'''"}},
+      Start: tabnashoover.StartSpec{Fixed: []string{"'''"}},
+      End:   tabnashoover.EndSpec{Fixed: []string{"'''"}},
     },
   },
 })
@@ -71,12 +71,12 @@ to EOF:
 ```go
 j := tabnas.Make()
 j.Use(myGrammar)
-j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
-  "block": []*hoover.Block{
+j.UseDefaults(tabnashoover.Hoover, tabnashoover.Defaults, map[string]any{
+  "block": []*tabnashoover.Block{
     {
       Name:  "line",
-      Start: hoover.StartSpec{Fixed: []string{"~"}},
-      End:   hoover.EndSpec{Fixed: []string{";", ""}},
+      Start: tabnashoover.StartSpec{Fixed: []string{"~"}},
+      End:   tabnashoover.EndSpec{Fixed: []string{";", ""}},
       Trim:  true,
     },
   },
@@ -98,13 +98,13 @@ a `[]string` consumes only the listed delimiters.
 
 ```go
 // Don't consume the start delimiter
-Start: hoover.StartSpec{
+Start: tabnashoover.StartSpec{
   Fixed:   []string{"["},
   Consume: false,
 }
 
 // Selectively consume only some end delimiters
-End: hoover.EndSpec{
+End: tabnashoover.EndSpec{
   Fixed:   []string{";", "#", ""},
   Consume: []string{";"},  // consume ';', leave '#' for another matcher
 }
@@ -117,10 +117,10 @@ their replacements:
 
 ```go
 f := false
-block := &hoover.Block{
+block := &tabnashoover.Block{
   Name:       "myblock",
-  Start:      hoover.StartSpec{Fixed: []string{"<<<"}},
-  End:        hoover.EndSpec{Fixed: []string{">>>"}},
+  Start:      tabnashoover.StartSpec{Fixed: []string{"<<<"}},
+  End:        tabnashoover.EndSpec{Fixed: []string{">>>"}},
   EscapeChar: "\\",
   Escape: map[string]string{
     "n":  "\n",  // \n -> newline
@@ -144,12 +144,12 @@ whatever your grammar defines (e.g. `group`, or `pair`/`elem` in a
 JSON-like grammar):
 
 ```go
-Start: hoover.StartSpec{
-  Rule: &hoover.HooverRuleSpec{
-    Parent: &hoover.HooverRuleFilter{
+Start: tabnashoover.StartSpec{
+  Rule: &tabnashoover.HooverRuleSpec{
+    Parent: &tabnashoover.HooverRuleFilter{
       Include: []string{"group"},  // only when the current rule's parent is `group`
     },
-    // Current: &hoover.HooverRuleFilter{Include: []string{"val"}},
+    // Current: &tabnashoover.HooverRuleFilter{Include: []string{"val"}},
     // State: "o",  // "o" = open (default), "c" = close, "" = don't check
   },
 }
@@ -220,7 +220,7 @@ debugging.
 ### `Hoover` (`tabnas.Plugin`)
 
 The plugin value. Register with
-`j.UseDefaults(hoover.Hoover, hoover.Defaults, opts)`.
+`j.UseDefaults(tabnashoover.Hoover, tabnashoover.Defaults, opts)`.
 
 ### `Defaults`
 
@@ -236,7 +236,7 @@ Deep-merged under the caller's options by `UseDefaults`.
 
 ```go
 map[string]any{
-  "block":  []*hoover.Block, // ordered; tried in array order
+  "block":  []*tabnashoover.Block, // ordered; tried in array order
   "lex":    map[string]any{"order": int},
   "action": tabnas.AltAction, // optional val-rule alternate action
 }

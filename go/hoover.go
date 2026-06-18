@@ -1,6 +1,6 @@
 /* Copyright (c) 2021-2026 Richard Rodger, MIT License */
 
-package hoover
+package tabnashoover
 
 import (
 	"fmt"
@@ -94,8 +94,8 @@ func buildBlocks(blockDefs []*Block) []*Block {
 // Hoover is the plugin function, matching the TS Hoover plugin.
 // Use with tabnas.UseDefaults to apply Defaults automatically:
 //
-//	j.UseDefaults(hoover.Hoover, hoover.Defaults, map[string]any{
-//	    "block": []*hoover.Block{ ... },
+//	j.UseDefaults(tabnashoover.Hoover, tabnashoover.Defaults, map[string]any{
+//	    "block": []*tabnashoover.Block{ ... },
 //	})
 var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) (err error) {
 	// Never panic out of the plugin: convert any unexpected panic into a

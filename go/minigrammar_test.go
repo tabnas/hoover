@@ -1,6 +1,6 @@
 /* Copyright (c) 2021-2026 Richard Rodger and other contributors, MIT License */
 
-package hoover
+package tabnashoover
 
 import (
 	tabnas "github.com/tabnas/parser/go"
