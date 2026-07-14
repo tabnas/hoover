@@ -165,8 +165,8 @@ system and the engine's Go conventions:
 - **Rule `State: ""` does not skip the check.** In TS, `state: ''` means
   "do not check the rule state". In Go the zero value `""` is
   indistinguishable from "unset", so it **always defaults to `"o"`
-  (open)**. There is no Go equivalent of "skip the state check"; use
-  `"oc"` to match in either state.
+  (open)**. To skip the state check (the TS `state: ''` behaviour), use
+  the dedicated sentinel `StateAny` (`"*"`): `State: tabnashoover.StateAny`.
 
 - **Errors instead of throws.** TS throws (`Error`, or a thrown parse
   error from a bad token). Go returns an `error` from `Use`/`UseDefaults`

@@ -298,6 +298,65 @@ func TestRuleContextState(t *testing.T) {
 		}},
 	})
 	parseEq(t, j2, `(@hi@)`, "hi")
+
+	// StateAny skips the state check entirely (mirrors the TS
+	// `state: ''` case of the "rule context state" test — in TS the
+	// empty string means "don't check", which Go expresses with the
+	// dedicated StateAny sentinel since "" defaults to "o").
+	j3 := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name: "at",
+			Start: StartSpec{
+				Fixed: []string{"@"},
+				Rule:  &HooverRuleSpec{Parent: &HooverRuleFilter{Include: []string{"group"}}, State: StateAny},
+			},
+			End: EndSpec{Fixed: []string{"@"}},
+		}},
+	})
+	parseEq(t, j3, `(@hi@)`, "hi")
+}
+
+// TestParseToEnd exercises the exported ParseToEnd wrapper directly,
+// mirroring the TS module's exported parseToEnd.
+func TestParseToEnd(t *testing.T) {
+	// Happy path: scan to the ';' end delimiter and consume it.
+	lex := tabnas.NewLex("hello;rest", nil)
+	pnt := lex.Cursor()
+	hvpnt := &tabnas.Point{Len: pnt.Len, SI: pnt.SI, RI: pnt.RI, CI: pnt.CI}
+	block := &Block{Name: "t", End: EndSpec{Fixed: []string{";"}}}
+
+	res := ParseToEnd(lex, hvpnt, block, nil)
+	if !res.Done {
+		t.Fatalf("ParseToEnd not done: %#v", res)
+	}
+	if res.Val != "hello" {
+		t.Errorf("Val = %#v, want %q", res.Val, "hello")
+	}
+	if res.Err != "" {
+		t.Errorf("Err = %q, want empty", res.Err)
+	}
+	if hvpnt.SI != len("hello;") {
+		t.Errorf("hvpnt.SI = %d, want %d (end delimiter consumed)", hvpnt.SI, len("hello;"))
+	}
+
+	// Escape handling: unknown escape with AllowUnknownEscape=false errors.
+	lex2 := tabnas.NewLex(`a\zb;`, nil)
+	pnt2 := lex2.Cursor()
+	hvpnt2 := &tabnas.Point{Len: pnt2.Len, SI: pnt2.SI, RI: pnt2.RI, CI: pnt2.CI}
+	allow := false
+	block2 := &Block{
+		Name:               "t",
+		End:                EndSpec{Fixed: []string{";"}},
+		EscapeChar:         `\`,
+		AllowUnknownEscape: &allow,
+	}
+	res2 := ParseToEnd(lex2, hvpnt2, block2, nil)
+	if res2.Done {
+		t.Errorf("expected not done on invalid escape, got %#v", res2)
+	}
+	if res2.Err != "invalid_escape" {
+		t.Errorf("Err = %q, want %q", res2.Err, "invalid_escape")
+	}
 }
 
 func TestNewlineTerminatedValue(t *testing.T) {

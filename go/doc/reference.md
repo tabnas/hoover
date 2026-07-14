@@ -23,9 +23,13 @@ import (
 | `EndSpec` | struct | A block's end configuration. |
 | `HooverRuleSpec` | struct | Rule-context conditions. |
 | `HooverRuleFilter` | struct | Include/exclude lists. |
+| `StateAny` | `string` (const, `"*"`) | `HooverRuleSpec.State` sentinel: skip the rule-state check (TS `state: ''`). |
+| `ParseToEnd` | func | Scan to a block's end delimiter (mirrors the TS exported `parseToEnd`). |
+| `ParseResult` | struct | Result of `ParseToEnd` (`Done`, `Val`, `Err`). |
 
-The matcher and scanning helpers (`matchStart`, `parseToEnd`, etc.) are
-unexported; the matcher is installed for you when the plugin registers.
+The start matcher (`matchStart`) is unexported; the lex matcher is
+installed for you when the plugin registers. `ParseToEnd` is exported to
+mirror the TS module's exported `parseToEnd`.
 
 ## `Hoover` (plugin)
 

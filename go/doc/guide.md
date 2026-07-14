@@ -227,7 +227,9 @@ the default — `"c"` for close, `"oc"` for either).
 
 > Go note: unlike TS, `State: ""` does **not** mean "skip the state
 > check" — the zero value cannot be distinguished from "unset", so it
-> defaults to `"o"`. Set `State: "oc"` to also match in the close state.
+> defaults to `"o"`. Set `State: "oc"` to also match in the close state,
+> or use the sentinel `StateAny` (`"*"`) to skip the state check entirely
+> (the TS `state: ''` behaviour).
 > See [Concepts → Differences from the TS version](concepts.md#differences-from-the-ts-version).
 
 ## Use a custom token name

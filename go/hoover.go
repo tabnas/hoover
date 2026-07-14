@@ -38,17 +38,38 @@ type parseResult struct {
 	err  string
 }
 
+// ParseResult is the result of ParseToEnd, mirroring the TS ParseResult
+// type. Where the TS result carries an optional bad Token, the Go result
+// carries the lex error code in Err (e.g. "invalid_escape"); Err is ""
+// when no error occurred.
+type ParseResult struct {
+	Done bool   // True if an end delimiter (or EOF, when configured) was reached.
+	Val  any    // The hoovered value (string, or a resolved keyword value).
+	Err  string // Lex error code; "" when none.
+}
+
 // HooverRuleFilter defines include/exclude lists for rule matching.
 type HooverRuleFilter struct {
 	Include []string
 	Exclude []string
 }
 
+// StateAny is a dedicated sentinel for HooverRuleSpec.State meaning "do not
+// check the rule state at all". It mirrors the TS spec value `state: ''`,
+// which the Go zero value "" cannot express because an unset State defaults
+// to "o". Use it in a data-shaped Block spec exactly like the TS form:
+//
+//	Rule: &tabnashoover.HooverRuleSpec{State: tabnashoover.StateAny}
+const StateAny = "*"
+
 // HooverRuleSpec defines rule context conditions for matching.
 type HooverRuleSpec struct {
 	Parent  *HooverRuleFilter
 	Current *HooverRuleFilter
-	State   string // "o"/"c"/"oc" = check; "" (unset) defaults to "o" (no "don't check", unlike TS)
+	// State selects which rule states match: "o"/"c"/"oc" = check the rule
+	// state; "" (unset) defaults to "o"; StateAny ("*") = don't check the
+	// rule state at all (TS: `state: ''`).
+	State string
 }
 
 // StartSpec defines how a block starts.
@@ -269,10 +290,15 @@ func matchStart(
 	}
 
 	// Rule state check: default "o" (open).
-	// Matches TS behavior where absent state field defaults to "o".
+	// Matches TS behavior where absent state field defaults to "o" and
+	// `state: ''` (Go: StateAny) skips the state check entirely.
 	rulestate := "o"
-	if rulespec != nil && rulespec.State != "" {
-		rulestate = rulespec.State
+	if rulespec != nil {
+		if rulespec.State == StateAny {
+			rulestate = ""
+		} else if rulespec.State != "" {
+			rulestate = rulespec.State
+		}
 	}
 	if rulestate != "" {
 		if rule == nil {
@@ -331,6 +357,23 @@ func matchStart(
 	}
 
 	return startResult{match: false}
+}
+
+// ParseToEnd scans lex.Src from hvpnt for one of block's end delimiters,
+// handling escape sequences, and returns the hoovered value, advancing
+// hvpnt past the (consumed) end delimiter. It is a thin wrapper over the
+// internal parser used by the plugin's lex matcher, exported to mirror the
+// TS module's exported parseToEnd. cfg may be nil; when non-nil and value
+// lexing is enabled, a hoovered value matching a defined keyword (e.g.
+// "true") resolves to that keyword's value.
+func ParseToEnd(
+	lex *tabnas.Lex,
+	hvpnt *tabnas.Point,
+	block *Block,
+	cfg *tabnas.LexConfig,
+) ParseResult {
+	r := parseToEnd(lex, hvpnt, block, cfg)
+	return ParseResult{Done: r.done, Val: r.val, Err: r.err}
 }
 
 func parseToEnd(
