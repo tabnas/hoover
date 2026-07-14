@@ -43,7 +43,7 @@
     "typescript": "6.0.3"
   },
   "peerDependencies": {
-    "@tabnas/parser": "^0.2.0"
+    "@tabnas/parser": ">=0"
   },
   "engines": {
     "node": ">=24"
