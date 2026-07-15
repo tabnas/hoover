@@ -1,5 +1,12 @@
 # @tabnas/hoover
 
+<!-- tabnas-badges -->
+[![npm](https://tabnas.github.io/status/badges/hoover-npm.svg)](https://www.npmjs.com/package/@tabnas/hoover)
+[![CI](https://github.com/tabnas/hoover/actions/workflows/ci.yml/badge.svg)](https://github.com/tabnas/hoover/actions/workflows/ci.yml)
+[![go](https://tabnas.github.io/status/badges/hoover-go.svg)](https://pkg.go.dev/github.com/tabnas/hoover/go)
+[![tabnas standard](https://tabnas.github.io/status/badges/hoover-standard.svg)](https://tabnas.github.io/status/)
+<!-- /tabnas-badges -->
+
 A syntax plugin for the [tabnas](https://github.com/tabnas/parser)
 parser engine that adds string *hoovering* — block-delimited strings
 with unquoted internal spaces. It is grammar-agnostic: it extends the
