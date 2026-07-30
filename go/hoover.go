@@ -230,14 +230,17 @@ func ruleSpecFromAny(v any) *HooverRuleSpec {
 	if c, ok := optAny(m, "current"); ok {
 		rs.Current = filterFromAny(c)
 	}
-	if s, ok := optAny(m, "state"); ok {
-		str, _ := s.(string)
-		// TS spells "don't check the state" as `state: ''`, which the Go
-		// zero value cannot express (unset means "o"); StateAny is that.
-		if str == "" {
-			str = StateAny
+	if v, ok := optAny(m, "state"); ok {
+		// TS spells "don't check the state" as `state: ''`, which the Go zero
+		// value cannot express (unset means "o"); StateAny is that. A JSON
+		// null is NOT the empty string — it means the key carries no value,
+		// so leave State unset and let the "o" default apply.
+		if str, isStr := v.(string); isStr {
+			if str == "" {
+				str = StateAny
+			}
+			rs.State = str
 		}
-		rs.State = str
 	}
 	return rs
 }
