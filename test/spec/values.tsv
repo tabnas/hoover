@@ -1,0 +1,4 @@
+input	expected	opts
+~true>	true	{"block":[{"name":"a","start":{"fixed":"~"},"end":{"fixed":[">",""]}}]}
+~null>	null	{"block":[{"name":"a","start":{"fixed":"~"},"end":{"fixed":[">",""]}}]}
+~hello>	"hello"	{"block":[{"name":"a","start":{"fixed":"~"},"end":{"fixed":[">",""]}}]}

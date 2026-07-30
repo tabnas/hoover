@@ -1,0 +1,8 @@
+input	expected	opts
+'''x'''	"x"	{"block":[{"name":"triplequote","start":{"fixed":"'''"},"end":{"fixed":"'''"}}]}
+'''hello world'''	"hello world"	{"block":[{"name":"triplequote","start":{"fixed":"'''"},"end":{"fixed":"'''"}}]}
+'''a\nb'''	"a\nb"	{"block":[{"name":"triplequote","start":{"fixed":"'''"},"end":{"fixed":"'''"}}]}
+'''  spaced  '''	"  spaced  "	{"block":[{"name":"triplequote","start":{"fixed":"'''"},"end":{"fixed":"'''"}}]}
+('''x''')	"x"	{"block":[{"name":"triplequote","start":{"fixed":"'''"},"end":{"fixed":"'''"}}]}
+(''' a b ''')	" a b "	{"block":[{"name":"triplequote","start":{"fixed":"'''"},"end":{"fixed":"'''"}}]}
+'''x'''	"x"	{"block":[{"name":"tq","token":"#XX","start":{"fixed":"'''"},"end":{"fixed":"'''"}}]}

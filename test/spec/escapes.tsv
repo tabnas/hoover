@@ -1,0 +1,9 @@
+input	expected	opts
+<a\\>b>	"a>b"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","escape":{"n":"\n",">":">","\\":"\\"}}]}
+<a\\nb>	"a\nb"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","escape":{"n":"\n",">":">","\\":"\\"}}]}
+<a\\\\b>	"a\\b"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","escape":{"n":"\n",">":">","\\":"\\"}}]}
+<a\\zb>	"azb"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","escape":{"n":"\n",">":">","\\":"\\"}}]}
+<a\\\nb>	"a\nb"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","escape":{"n":"\n",">":">","\\":"\\"}}]}
+<a\\>b>	"a>b"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","escape":{">":">"},"allowUnknownEscape":false}]}
+<a\\zb>	ERROR	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","escape":{">":">"},"allowUnknownEscape":false}]}
+<a\\zb>	"a\\zb"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","preserveEscapeChar":true}]}

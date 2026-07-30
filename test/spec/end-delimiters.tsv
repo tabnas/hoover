@@ -1,0 +1,11 @@
+input	expected	opts
+~hello world	"hello world"	{"block":[{"name":"tilde","start":{"fixed":"~"},"end":{"fixed":[">","!",""]}}]}
+~a>	"a"	{"block":[{"name":"tilde","start":{"fixed":"~"},"end":{"fixed":[">","!",""]}}]}
+~a!	"a"	{"block":[{"name":"tilde","start":{"fixed":"~"},"end":{"fixed":[">","!",""]}}]}
+~a b;	"a b"	{"block":[{"name":"tilde","start":{"fixed":"~"},"end":{"fixed":[";",""],"consume":[";"]}}]}
+~a b	"a b"	{"block":[{"name":"tilde","start":{"fixed":"~"},"end":{"fixed":[";",""],"consume":[";"]}}]}
+(~hi)	"hi"	{"block":[{"name":"a","start":{"fixed":"~"},"end":{"fixed":")","consume":false}}]}
+~hi;	"hi"	{"block":[{"name":"a","start":{"fixed":"~"},"end":{"fixed":[";",""],"consume":true}}]}
+~a b\n	"a b"	{"block":[{"name":"line","start":{"fixed":"~"},"end":{"fixed":["\n","\r\n",""]}}]}
+~a b\r\n	"a b"	{"block":[{"name":"line","start":{"fixed":"~"},"end":{"fixed":["\n","\r\n",""]}}]}
+~a b	"a b"	{"block":[{"name":"line","start":{"fixed":"~"},"end":{"fixed":["\n","\r\n",""]}}]}

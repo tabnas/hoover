@@ -1,0 +1,4 @@
+input	expected	opts
+<hi>	"<hi"	{"block":[{"name":"a","start":{"fixed":"<","consume":false},"end":{"fixed":">"}}]}
+<hi>	"hi"	{"block":[{"name":"a","start":{"fixed":["<","~"],"consume":["<"]},"end":{"fixed":">"}}]}
+~hi>	"~hi"	{"block":[{"name":"a","start":{"fixed":["<","~"],"consume":["<"]},"end":{"fixed":">"}}]}

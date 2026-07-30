@@ -1,0 +1,3 @@
+input	expected	opts
+<  hello  >	"hello"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
+< a b >	"a b"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
