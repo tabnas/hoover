@@ -4,6 +4,7 @@ package tabnashoover
 
 import (
 	"fmt"
+	"strings"
 
 	tabnas "github.com/tabnas/parser/go"
 )
@@ -55,7 +56,7 @@ type HooverRuleFilter struct {
 }
 
 // StateAny is a dedicated sentinel for HooverRuleSpec.State meaning "do not
-// check the rule state at all". It mirrors the TS spec value `state: ''`,
+// check the rule state at all". It mirrors the TS spec value `state: ”`,
 // which the Go zero value "" cannot express because an unset State defaults
 // to "o". Use it in a data-shaped Block spec exactly like the TS form:
 //
@@ -95,6 +96,198 @@ var Defaults = map[string]any{
 	"lex": map[string]any{
 		"order": 4500000, // before string(5e6), number(7e6)
 	},
+}
+
+// blocksFromOpts accepts the `block` option in either of the two shapes the
+// TS plugin accepts: the Go-native []*Block, or plain data (the shape options
+// arrive in from JSON/config, where TS just takes an object literal). Without
+// the data shape the Go plugin could only be configured from Go source, which
+// the TS plugin does not require.
+//
+// Data-shape fields are matched case-insensitively against the Block field
+// names, `fixed` may be a single string or a list, and `consume` may be a
+// bool or a list — all as in TS.
+func blocksFromOpts(v any) []*Block {
+	switch defs := v.(type) {
+	case nil:
+		return nil
+	case []*Block:
+		return defs
+	case []any:
+		out := make([]*Block, 0, len(defs))
+		for _, d := range defs {
+			if b, ok := d.(*Block); ok {
+				out = append(out, b)
+				continue
+			}
+			if m, ok := tabnas.AsStringMap(d); ok {
+				out = append(out, blockFromMap(m))
+			}
+		}
+		return out
+	case []map[string]any:
+		out := make([]*Block, 0, len(defs))
+		for _, m := range defs {
+			out = append(out, blockFromMap(m))
+		}
+		return out
+	}
+	return nil
+}
+
+// optAny looks a key up case-insensitively, so both the TS spelling
+// (`escapeChar`) and the Go field name (`EscapeChar`) resolve.
+func optAny(m map[string]any, key string) (any, bool) {
+	if v, ok := m[key]; ok {
+		return v, true
+	}
+	for k, v := range m {
+		if strings.EqualFold(k, key) {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+func optString(m map[string]any, key string) string {
+	if v, ok := optAny(m, key); ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+func optBool(m map[string]any, key string) bool {
+	if v, ok := optAny(m, key); ok {
+		if b, ok := v.(bool); ok {
+			return b
+		}
+	}
+	return false
+}
+
+// optStrings reads a `fixed`-style field: a single string or a list of them.
+func optStrings(m map[string]any, key string) []string {
+	v, ok := optAny(m, key)
+	if !ok {
+		return nil
+	}
+	return toStrings(v)
+}
+
+func toStrings(v any) []string {
+	switch x := v.(type) {
+	case string:
+		return []string{x}
+	case []string:
+		return x
+	case []any:
+		out := make([]string, 0, len(x))
+		for _, e := range x {
+			if s, ok := e.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// optConsume reads a `consume` field: a bool, or the list of delimiters to
+// consume. Absent means the default (consume).
+func optConsume(m map[string]any) any {
+	v, ok := optAny(m, "consume")
+	if !ok {
+		return nil
+	}
+	if b, ok := v.(bool); ok {
+		return b
+	}
+	return toStrings(v)
+}
+
+func filterFromAny(v any) *HooverRuleFilter {
+	m, ok := tabnas.AsStringMap(v)
+	if !ok {
+		return nil
+	}
+	return &HooverRuleFilter{
+		Include: optStrings(m, "include"),
+		Exclude: optStrings(m, "exclude"),
+	}
+}
+
+func ruleSpecFromAny(v any) *HooverRuleSpec {
+	m, ok := tabnas.AsStringMap(v)
+	if !ok {
+		return nil
+	}
+	rs := &HooverRuleSpec{}
+	if p, ok := optAny(m, "parent"); ok {
+		rs.Parent = filterFromAny(p)
+	}
+	if c, ok := optAny(m, "current"); ok {
+		rs.Current = filterFromAny(c)
+	}
+	if v, ok := optAny(m, "state"); ok {
+		// TS spells "don't check the state" as `state: ''`, which the Go zero
+		// value cannot express (unset means "o"); StateAny is that. A JSON
+		// null is NOT the empty string — it means the key carries no value,
+		// so leave State unset and let the "o" default apply.
+		if str, isStr := v.(string); isStr {
+			if str == "" {
+				str = StateAny
+			}
+			rs.State = str
+		}
+	}
+	return rs
+}
+
+func blockFromMap(m map[string]any) *Block {
+	b := &Block{
+		Name:               optString(m, "name"),
+		Token:              optString(m, "token"),
+		EscapeChar:         optString(m, "escapeChar"),
+		PreserveEscapeChar: optBool(m, "preserveEscapeChar"),
+		Trim:               optBool(m, "trim"),
+	}
+	if v, ok := optAny(m, "allowUnknownEscape"); ok {
+		if allow, ok := v.(bool); ok {
+			b.AllowUnknownEscape = &allow
+		}
+	}
+	if v, ok := optAny(m, "escape"); ok {
+		if em, ok := tabnas.AsStringMap(v); ok {
+			b.Escape = make(map[string]string, len(em))
+			for k, ev := range em {
+				if s, ok := ev.(string); ok {
+					b.Escape[k] = s
+				}
+			}
+		}
+	}
+	if v, ok := optAny(m, "start"); ok {
+		if sm, ok := tabnas.AsStringMap(v); ok {
+			b.Start = StartSpec{
+				Fixed:   optStrings(sm, "fixed"),
+				Consume: optConsume(sm),
+			}
+			if r, ok := optAny(sm, "rule"); ok {
+				b.Start.Rule = ruleSpecFromAny(r)
+			}
+		}
+	}
+	if v, ok := optAny(m, "end"); ok {
+		if em, ok := tabnas.AsStringMap(v); ok {
+			b.End = EndSpec{
+				Fixed:   optStrings(em, "fixed"),
+				Consume: optConsume(em),
+			}
+		}
+	}
+	return b
 }
 
 func buildBlocks(blockDefs []*Block) []*Block {
@@ -137,7 +330,7 @@ var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) (err erro
 			"hoover: the 'val' rule is missing; register a grammar that defines it before the hoover plugin")
 	}
 
-	blockDefs, _ := opts["block"].([]*Block)
+	blockDefs := blocksFromOpts(opts["block"])
 	action, _ := opts["action"].(tabnas.AltAction)
 
 	blocks := buildBlocks(blockDefs)

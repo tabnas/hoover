@@ -1,0 +1,8 @@
+input	expected	opts
+(@hello world@)	"hello world"	{"block":[{"name":"at","start":{"fixed":"@","rule":{"parent":{"include":["group"]}}},"end":{"fixed":"@"}}]}
+@hello world@	ERROR	{"block":[{"name":"at","start":{"fixed":"@","rule":{"parent":{"include":["group"]}}},"end":{"fixed":"@"}}]}
+@hi@	"hi"	{"block":[{"name":"at","start":{"fixed":"@","rule":{"parent":{"exclude":["group"]}}},"end":{"fixed":"@"}}]}
+(@hi@)	"@hi@"	{"block":[{"name":"at","start":{"fixed":"@","rule":{"parent":{"exclude":["group"]}}},"end":{"fixed":"@"}}]}
+@hi@	"hi"	{"block":[{"name":"at","start":{"fixed":"@","rule":{"current":{"include":["val"],"exclude":["group"]}}},"end":{"fixed":"@"}}]}
+@hi@	"hi"	{"block":[{"name":"at","start":{"fixed":"@","rule":{"state":"oc"}},"end":{"fixed":"@"}}]}
+(@hi@)	"hi"	{"block":[{"name":"at","start":{"fixed":"@","rule":{"parent":{"include":["group"]},"state":""}},"end":{"fixed":"@"}}]}

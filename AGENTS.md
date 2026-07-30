@@ -34,10 +34,11 @@ by name.
 | [`go/`](go/) | Go port — module `github.com/tabnas/hoover/go` (`const Version` in `go/hoover.go`, `0.1.7`), a single [`go/hoover.go`](go/hoover.go). Depends only on `github.com/tabnas/parser/go` (imported as `tabnas`). |
 | [`ts/doc/hoover-ts.md`](ts/doc/hoover-ts.md), [`go/doc/hoover-go.md`](go/doc/hoover-go.md) | Per-runtime tutorial → how-to → reference → explanation docs. |
 
-There are no shared `.tsv` fixtures and no grammar package: hoover's
-only production dependency is the engine, and each runtime brings its
-own tiny local test grammar (`val` + a parenthesised `group`). `ts/` and
-`go/` each have their own `AGENTS.md` with layout and contribution notes.
+There is no grammar package: hoover's only production dependency is the
+engine, and each runtime brings its own tiny local test grammar (`val` + a
+parenthesised `group`). The shared `.tsv` conformance fixtures run against
+that grammar — see [`test/AGENTS.md`](test/AGENTS.md). `ts/` and `go/` each
+have their own `AGENTS.md` with layout and contribution notes.
 
 ## The tabnas engine dependency
 
@@ -72,9 +73,10 @@ CI below).
    change Go to match. The engine (tabnas) is 1-based for row/column
    tracking in both languages — keep hoover consistent with that (columns
    reset to `1` after a newline).
-2. Neither runtime depends on a grammar package, so there are no shared
-   JSON fixtures. Parity is kept by testing both ports against an
-   **identical tiny local grammar** with **matching cases**:
+2. Neither runtime depends on a grammar package, so parity is kept by
+   running both ports against an **identical tiny local grammar**. The
+   shared `test/spec/*.tsv` fixtures are the contract; the in-language
+   suites keep the cases that a fixture cannot express:
    [`ts/test/minigrammar.ts`](ts/test/minigrammar.ts) and
    `go/minigrammar_test.go` define the same `val` + `group` grammar, and
    [`ts/test/hoover.test.ts`](ts/test/hoover.test.ts) / `go/hoover_test.go`
