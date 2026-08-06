@@ -462,3 +462,63 @@ func TestResolvesKeywordValues(t *testing.T) {
 	parseEq(t, j, "~null>", nil)
 	parseEq(t, j, "~hello>", "hello") // non-keyword stays a string
 }
+
+// TestHooverUnderRuleIncludeFilter pins that hoover extends a host grammar
+// that narrows itself with `rule.include` — the shape `@tabnas/json` uses
+// (`include: "json"`). The engine keeps only alts carrying one of the include
+// tags, so hoover's added alt has to carry them.
+//
+// This currently passes with or without the tag, because the Go engine
+// applies the filter once (where `rule.include` is set) rather than on every
+// options call. The canonical TypeScript engine re-applies it, where the same
+// grammar silently dropped the alt. The test is here so the two runtimes stay
+// pinned to the same observable behaviour.
+func TestHooverUnderRuleIncludeFilter(t *testing.T) {
+	op, cp := "(", ")"
+	j := tabnas.Make(tabnas.Options{
+		Fixed: &tabnas.FixedOptions{Token: map[string]*string{"#OP": &op, "#CP": &cp}},
+		Rule:  &tabnas.RuleOptions{Start: "val", Include: "mini"},
+	})
+	opt := j.Token("#OP")
+	cpt := j.Token("#CP")
+	zz := j.Token("#ZZ")
+	vl := j.Token("#VAL")
+
+	j.Rule("val", func(rs *tabnas.RuleSpec, _ *tabnas.Parser) {
+		rs.Clear()
+		rs.AddOpen(&tabnas.AltSpec{S: [][]tabnas.Tin{{opt}}, P: "group", B: 1, G: "mini"})
+		rs.AddOpen(&tabnas.AltSpec{S: [][]tabnas.Tin{{vl}}, G: "mini"})
+		rs.AddClose(&tabnas.AltSpec{S: [][]tabnas.Tin{{zz}}, G: "mini"})
+		rs.AddClose(&tabnas.AltSpec{S: [][]tabnas.Tin{{cpt}}, B: 1, G: "mini"})
+	})
+	j.Rule("group", func(rs *tabnas.RuleSpec, _ *tabnas.Parser) {
+		rs.Clear()
+		rs.AddOpen(&tabnas.AltSpec{S: [][]tabnas.Tin{{opt}}, P: "val", G: "mini"})
+		rs.AddClose(&tabnas.AltSpec{S: [][]tabnas.Tin{{cpt}}, G: "mini"})
+	})
+
+	if err := Hoover(j, map[string]any{
+		"block": []any{map[string]any{
+			"name":  "tq",
+			"start": map[string]any{"fixed": "'''"},
+			"end":   map[string]any{"fixed": "'''"},
+		}},
+	}); err != nil {
+		t.Fatalf("Hoover returned error: %v", err)
+	}
+
+	hv := j.Token("#HV")
+	kept := false
+	for _, alt := range j.RSM()["val"].OpenAlts() {
+		for _, pos := range alt.S {
+			for _, tin := range pos {
+				if tin == hv {
+					kept = true
+				}
+			}
+		}
+	}
+	if !kept {
+		t.Error("the hoover alt was filtered away by rule.include")
+	}
+}

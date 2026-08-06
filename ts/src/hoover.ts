@@ -99,6 +99,20 @@ const Hoover: Plugin = (tn: Tabnas, options: HooverOptions) => {
 
   let blocks = buildBlocks(options.block)
 
+  // The engine's `rule.include` filter keeps only those alts carrying one of
+  // its group tags, and it "applies universally, thus also for subsequent
+  // rules" — it is re-applied on every `tn.options()` call, including
+  // hoover's own matcher registration below. So on a host that sets it
+  // (`@tabnas/json` uses `rule: { include: 'json' }` to narrow the grammar to
+  // plain JSON) an untagged alt is added and then silently discarded: the
+  // plugin loads, the matcher fires, the `#HV` token is produced — and the
+  // parse dies with `unexpected character(s)` pointing at the user's source.
+  //
+  // Carrying the host's active tags says "this alt is part of the selected
+  // grammar", which is exactly what a deliberate `use(Hoover)` means.
+  const include: string[] = tn.config().rule.include || []
+  const groups = 0 < include.length ? { g: include.slice() } : {}
+
   let tokenMap: any = {}
 
   for (let block of blocks) {
@@ -110,6 +124,7 @@ const Hoover: Plugin = (tn: Tabnas, options: HooverOptions) => {
         rs.open({
           s: [block.TOKEN],
           a: options.action,
+          ...groups,
         })
       })
     }
@@ -159,6 +174,35 @@ const Hoover: Plugin = (tn: Tabnas, options: HooverOptions) => {
       },
     },
   })
+
+  // The `tn.options()` call above re-runs the engine's alt filter, so this is
+  // the first point at which the alts are known to have survived it. Check
+  // rather than assume: the failure mode is silent — a working lexer feeding
+  // a rule that cannot accept its token — and it surfaces to the user as an
+  // `unexpected character(s)` error on their own source, which points
+  // nowhere near the cause.
+  const survivors: any[] = (tn.rule() as any).val?.def?.open || []
+  const missing = Object.values(tokenMap).filter(
+    (tin) =>
+      !survivors.some(
+        (alt: any) =>
+          Array.isArray(alt.s) &&
+          alt.s.some((pos: any) =>
+            Array.isArray(pos) ? pos.includes(tin) : pos === tin,
+          ),
+      ),
+  )
+  if (0 < missing.length) {
+    throw new Error(
+      '@tabnas/hoover: the block alternate was removed from the ' +
+        "'val' rule by the host grammar's alt filter " +
+        '(rule.include=' +
+        JSON.stringify(include) +
+        ', rule.exclude=' +
+        JSON.stringify(tn.config().rule.exclude || []) +
+        '); hoover cannot extend a grammar that excludes it',
+    )
+  }
 }
 
 

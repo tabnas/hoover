@@ -5,7 +5,7 @@ import { deepEqual, throws } from 'node:assert'
 
 import { Tabnas } from '@tabnas/parser'
 import { Hoover } from '../dist/hoover'
-import { makeMini, miniGrammar } from './minigrammar'
+import { makeMini, makeTagged, miniGrammar } from './minigrammar'
 
 // These tests run the hoover plugin against the tiny local grammar in
 // minigrammar.ts (val + parenthesised group). The grammar exists only to
@@ -302,5 +302,49 @@ describe('hoover', () => {
     // The default token is applied to an internal copy, not the caller's object.
     deepEqual(block.token, undefined)
     deepEqual(block.TOKEN, undefined)
+  })
+})
+
+// A host grammar that narrows itself with `rule.include` — the shape
+// `@tabnas/json` uses (`rule: { include: 'json' }`). The engine's alt filter
+// "applies universally, thus also for subsequent rules", so it re-runs on
+// every `tn.options()` call, including hoover's own matcher registration at
+// the end of the plugin. An untagged alt was therefore added and then
+// silently discarded: the plugin loaded without error, the matcher fired and
+// produced a `#HV` token, and the parse died with `unexpected character(s)`
+// pointing at the user's source rather than at the cause.
+describe('hoover under a rule.include filter', () => {
+  const BLOCKS = {
+    block: [
+      { name: 'triplequote', start: { fixed: `'''` }, end: { fixed: `'''` } },
+    ],
+  }
+
+  test('hoover extends a grammar that sets rule.include', () => {
+    const j = makeTagged(BLOCKS)
+    deepEqual(j.parse(`'''x'''`), 'x')
+    deepEqual(j.parse(`'''hello world'''`), 'hello world')
+    deepEqual(j.parse(`'''a\nb'''`), 'a\nb')
+    deepEqual(j.parse(`('''x''')`), 'x')
+  })
+
+  test('the host grammar still parses its own values', () => {
+    const j = makeTagged(BLOCKS)
+    deepEqual(j.parse(`true`), true)
+    deepEqual(j.parse(`123`), 123)
+    deepEqual(j.parse(`(456)`), 456)
+  })
+
+  test('the block alternate survives the filter', () => {
+    const j = makeTagged(BLOCKS)
+    const hv = (j as any).token('#HV')
+    const open = (j.rule() as any).val.def.open
+    const kept = open.some((alt: any) =>
+      Array.isArray(alt.s) &&
+      alt.s.some((pos: any) =>
+        Array.isArray(pos) ? pos.includes(hv) : pos === hv,
+      ),
+    )
+    deepEqual(kept, true)
   })
 })

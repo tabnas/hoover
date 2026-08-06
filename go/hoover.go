@@ -336,6 +336,22 @@ var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) (err erro
 	blocks := buildBlocks(blockDefs)
 	tokenMap := map[string]tabnas.Tin{}
 
+	// Carry the host grammar's active `rule.include` tags on the added alt,
+	// mirroring the canonical TypeScript. A host that narrows itself with
+	// `rule.include` (as `@tabnas/json` does with `include: "json"`) keeps
+	// only alts carrying one of its tags, and an untagged one is dropped.
+	//
+	// The two engines differ on WHEN that filter runs: Go applies it once,
+	// where `rule.include` is set, so a later plugin's untagged alt survives;
+	// the TypeScript engine re-applies it on every `options()` call, which
+	// discards the alt hoover adds. So this is currently a no-op here and
+	// load-bearing there. Tagging in both keeps the two identical whichever
+	// way that divergence is resolved. See ../ts/src/hoover.ts.
+	var groups string
+	if r := j.Options().Rule; r != nil {
+		groups = r.Include
+	}
+
 	for _, block := range blocks {
 		tin := j.Token(block.Token)
 		block.tin = tin
@@ -346,6 +362,7 @@ var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) (err erro
 				rs.PrependOpen(&tabnas.AltSpec{
 					S: [][]tabnas.Tin{{localTin}},
 					A: action,
+					G: groups,
 				})
 			})
 		}
