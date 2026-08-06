@@ -67,3 +67,61 @@ export function makeMini(opts: any): Tabnas {
   tn.use(Hoover, opts)
   return tn
 }
+
+// tagGrammar is miniGrammar with every alt carrying a `mini` group tag and
+// `rule.include` narrowed to it — the shape a strict grammar plugin uses to
+// select a subset of a richer default (`@tabnas/json` does exactly this with
+// `rule: { include: 'json' }`).
+//
+// It exists to pin hoover's behaviour under the engine's alt filter, which
+// "applies universally, thus also for subsequent rules": an untagged alt
+// added by a plugin is discarded on the next `tn.options()` call — including
+// hoover's own matcher registration.
+export function tagGrammar(tn: Tabnas) {
+  tn.options({
+    fixed: { token: { '#OP': '(', '#CP': ')' } },
+    rule: { start: 'val', include: 'mini' },
+    value: {
+      def: { true: { val: true }, false: { val: false }, null: { val: null } },
+    },
+  })
+  tn.token('#OP')
+  tn.token('#CP')
+
+  tn.rule('val', (rs: any) => {
+    rs.bo((r: any) => {
+      r.node = undefined
+    })
+    rs.bc((r: any, ctx: any) => {
+      r.node =
+        undefined === r.node
+          ? undefined === r.child.node
+            ? 0 === r.os
+              ? undefined
+              : r.o0.resolveVal(r, ctx)
+            : r.child.node
+          : r.node
+    })
+    rs.open([
+      { s: '#OP', p: 'group', b: 1, g: 'mini' },
+      { s: '#VAL', g: 'mini' },
+    ])
+    rs.close([{ s: '#ZZ', g: 'mini' }, { s: '#CP', b: 1, g: 'mini' }])
+  })
+
+  tn.rule('group', (rs: any) => {
+    rs.bc((r: any) => {
+      r.node = r.child.node
+    })
+    rs.open([{ s: '#OP', p: 'val', g: 'mini' }])
+    rs.close([{ s: '#CP', g: 'mini' }])
+  })
+}
+
+// makeTagged is makeMini against tagGrammar.
+export function makeTagged(opts: any): Tabnas {
+  const tn = new Tabnas()
+  tn.use(tagGrammar)
+  tn.use(Hoover, opts)
+  return tn
+}
