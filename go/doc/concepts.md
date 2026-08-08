@@ -178,5 +178,6 @@ system and the engine's Go conventions:
   `true`/`false`/`null`. In Go, define them on the instance (via
   `Value.Def`) for keyword resolution to apply.
 
-- **A `Version` constant.** The Go package exposes `Version` (e.g.
-  `"0.2.3"`); the TS package version lives in `package.json`.
+- **A `VERSION` constant.** The Go package exposes `VERSION`; the TS
+  package exports the same value as `VERSION`, and both must equal
+  `ts/package.json` "version" (a drift test in each runtime enforces it).

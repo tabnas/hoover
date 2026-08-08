@@ -31,6 +31,9 @@ defining `val` must already be registered.
   `// =>` assertions in this repo's READMEs and docs.
 - `test/perf.test.ts` — a relative check that reusing one configured
   instance beats rebuilding the plugin per parse.
+- `test/version.test.ts` — the exported `VERSION` must equal
+  `package.json` "version"; `../go/version_test.go` does the same for the
+  Go const. Both fail (never skip) if `package.json` cannot be read.
 
 The key internals: `buildBlocks` applies defaults (`token` → `#HV`,
 `allowUnknownEscape` → `true`, `preserveEscapeChar` → `false`);
