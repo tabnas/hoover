@@ -10,7 +10,7 @@ import (
 	tabnas "github.com/tabnas/parser/go"
 )
 
-const Version = "0.2.3"
+const Version = "0.2.4"
 
 // Sentinels used by parseToEnd where canonical TS relies on `undefined`.
 // Both are negative, so they are outside the 0..255 range of any source byte
