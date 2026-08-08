@@ -17,7 +17,7 @@ import (
 |---|---|---|
 | `Hoover` | `tabnas.Plugin` | The plugin value. Register with `j.UseDefaults(Hoover, Defaults, opts)`. |
 | `Defaults` | `map[string]any` | Default options deep-merged under the caller's options by `UseDefaults`. |
-| `Version` | `string` (const) | The module version (e.g. `"0.2.3"`). |
+| `VERSION` | `string` (const) | The module version; always equal to `ts/package.json` "version". |
 | `Block` | struct | A single block definition. |
 | `StartSpec` | struct | A block's start configuration. |
 | `EndSpec` | struct | A block's end configuration. |
@@ -236,11 +236,14 @@ type HooverRuleFilter struct {
 
 When both are set, both must pass.
 
-## `Version`
+## `VERSION`
 
 ```go
-const Version = "0.2.3"
+const VERSION = "..." // the current module version
 ```
+
+Kept equal to `ts/package.json` "version" by the release orchestrator;
+`version_test.go` fails the build if the two drift.
 
 ## Errors / bad tokens
 

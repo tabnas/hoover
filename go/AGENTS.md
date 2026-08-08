@@ -32,7 +32,7 @@ Keep the Go behavior identical to TS for equivalent configs.
 
 - `hoover.go` — the whole plugin:
   - `Hoover` — the `tabnas.Plugin` value; `Defaults` — the option
-    defaults (lex order `4500000`); `Version`.
+    defaults (lex order `4500000`); `VERSION`.
   - `Block`, `StartSpec`, `EndSpec`, `HooverRuleSpec`,
     `HooverRuleFilter` — the configuration types.
   - `matchStart` (rule + start-delimiter matching) and `parseToEnd`
@@ -48,6 +48,9 @@ Keep the Go behavior identical to TS for equivalent configs.
   fixture through the mini grammar. The TS side runs the same files.
 - `perf_test.go` — a relative check that reusing one configured instance
   beats rebuilding the plugin per parse.
+- `version_test.go` — `VERSION` must equal `../ts/package.json`
+  "version". Deliberately fatal, never skipped, if that file cannot be
+  read; `../ts/test/version.test.ts` is its TS twin.
 
 ## Registration API (differs from TS surface, same behavior)
 

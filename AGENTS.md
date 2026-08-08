@@ -30,8 +30,8 @@ by name.
 
 | Path | What it is |
 |---|---|
-| [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@tabnas/hoover` npm package (`0.2.3`). A single plugin in [`ts/src/hoover.ts`](ts/src/hoover.ts). Imports the engine as `@tabnas/parser`; peer-depends on it (`">=2"`). |
-| [`go/`](go/) | Go port — module `github.com/tabnas/hoover/go` (`const Version` in `go/hoover.go`, `0.2.3`), a single [`go/hoover.go`](go/hoover.go). Depends only on `github.com/tabnas/parser/go` (imported as `tabnas`). |
+| [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@tabnas/hoover` npm package. A single plugin in [`ts/src/hoover.ts`](ts/src/hoover.ts). Imports the engine as `@tabnas/parser`; peer-depends on it (`">=2"`). |
+| [`go/`](go/) | Go port — module `github.com/tabnas/hoover/go` (`const VERSION` in `go/hoover.go`), a single [`go/hoover.go`](go/hoover.go). Depends only on `github.com/tabnas/parser/go` (imported as `tabnas`). |
 | [`ts/doc/hoover-ts.md`](ts/doc/hoover-ts.md), [`go/doc/hoover-go.md`](go/doc/hoover-go.md) | Per-runtime tutorial → how-to → reference → explanation docs. |
 
 There is no grammar package: hoover's only production dependency is the
@@ -180,7 +180,7 @@ after editing `ts/src/` or `ts/test/*.ts`.
 
 Both the repo-root [`Makefile`](Makefile) and [`ts/Makefile`](ts/Makefile)
 wrap both halves: `make build|test|clean` run the TS and Go sides, and
-`make publish-go V=x.y.z` seds `V` into the `const Version` in
+`make publish-go V=x.y.z` seds `V` into the `const VERSION` in
 `go/hoover.go`, commits, tags `go/vX.Y.Z`, and (when `gh` is present)
 creates a GitHub release. `make tags-go` lists the Go tags. Local Go
 builds resolve the unpublished engine via the `replace` in `go/go.mod`
@@ -206,6 +206,13 @@ builds resolve the unpublished engine via the `replace` in `go/go.mod`
 - `ts/test/perf.test.ts` and `go/perf_test.go` — a ratio check that
   reusing one configured instance is far cheaper than rebuilding the
   plugin per parse. Relative, not an absolute timing budget.
+- [`ts/test/version.test.ts`](ts/test/version.test.ts) and
+  `go/version_test.go` — the baked-in `VERSION` (exported from
+  `ts/src/hoover.ts`, `const VERSION` in `go/hoover.go`) must equal
+  `ts/package.json` "version". This is the drift guard: a release that
+  bumps `package.json` and forgets a constant goes red here instead of
+  shipping a lie. Both fail — never skip — if `package.json` cannot be
+  read.
 
 ## CI
 
