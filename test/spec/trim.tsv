@@ -1,3 +1,26 @@
 input	expected	opts
 <  hello  >	"hello"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
 < a b >	"a b"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
+# `trim: true` follows JavaScript String.prototype.trim exactly: the trimmed
+# set is ECMA-262 WhiteSpace + LineTerminator, which is NOT the same as the
+# Unicode White_Space property Go's unicode.IsSpace tests. The two disagree in
+# both directions, so both directions are pinned below.
+# ZWNBSP / BOM (U+FEFF) IS trimmed by JS but is category Cf, so it is not
+# Unicode White_Space. This is the ini `\ufeffa=1` BOM-in-the-first-key case.
+<\ufeff hello \ufeff>	"hello"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
+<\ufeffhello>	"hello"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
+# Every other member of the set, leading and trailing at once.
+<\u0009\u000b\u000c\u000d\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000hello\u3000\u205f\u202f\u2029\u2028\u200a\u2009\u2008\u2007\u2006\u2005\u2004\u2003\u2002\u2001\u2000\u1680\u00a0\u000d\u000c\u000b\u0009>	"hello"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
+# NEL (U+0085) is Unicode White_Space but is neither WhiteSpace nor
+# LineTerminator in ECMA-262, so JS leaves it in place. A Go port that reached
+# for unicode.IsSpace instead of the enumerated set fails exactly here.
+<\u0085hello\u0085>	"\u0085hello\u0085"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
+# Neither is category-Cf padding: ZWSP and the Mongolian vowel separator.
+<\u200bhello\u200b>	"\u200bhello\u200b"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
+<\u180ehello\u180e>	"\u180ehello\u180e"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
+# LF and TAB again, via the loader's own escapes rather than \uXXXX.
+<\n\t hello \t\n>	"hello"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
+# Trimming is an edge operation only: interior members survive untouched.
+<  a\ufeff\u00a0b  >	"a\ufeff\u00a0b"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}
+# A block that is nothing but trimmable padding trims to the empty string.
+<\ufeff \u3000>	""	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"trim":true}]}

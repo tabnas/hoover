@@ -258,6 +258,34 @@ describe('hoover', () => {
       ],
     })
     deepEqual(j2.parse(`(@hi@)`), 'hi')
+
+    // state '' with NO parent/current filter still matches: turning the
+    // state check off leaves no rule condition at all, which is no
+    // constraint — not a failed one. Previously this never matched.
+    const j3 = makeMini({
+      block: [
+        { name: 'at', start: { fixed: '@', rule: { state: '' } }, end: { fixed: '@' } },
+      ],
+    })
+    deepEqual(j3.parse(`@hi@`), 'hi')
+    deepEqual(j3.parse(`(@hi@)`), 'hi')
+  })
+
+  test('escape char as the final source character', () => {
+    // Nothing to escape: the block never reaches its end delimiter (not
+    // even the configured EOF one) and is reported as unterminated.
+    const j = makeMini({
+      block: [
+        {
+          name: 'a',
+          start: { fixed: '~' },
+          end: { fixed: ['>', ''] },
+          escapeChar: '\\',
+        },
+      ],
+    })
+    deepEqual(j.parse('~ab>'), 'ab') // control: terminates normally
+    throws(() => j.parse('~ab\\'))
   })
 
   test('newline-terminated value', () => {

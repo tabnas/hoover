@@ -118,6 +118,10 @@ block opens only if **all** supplied filters pass.
 When no filters are supplied, the default behaviour is: state must be
 open (`'o'`).
 
+Supplying `state: ''` and no `parent`/`current` filter leaves the block
+with no rule condition at all — which is *no constraint*, so the block
+matches everywhere, rather than nowhere.
+
 ### `end`
 
 How the block terminates.
@@ -167,6 +171,16 @@ dropping it.
 stripped from the value (internal whitespace is preserved). Also trims
 the captured start text.
 
+The trimmed set is exactly JavaScript's `String.prototype.trim`, i.e.
+ECMA-262 *WhiteSpace* ∪ *LineTerminator*: TAB, LF, VT, FF, CR, U+FEFF
+(ZWNBSP / BOM), the Unicode `Space_Separator` category (U+0020, U+00A0,
+U+1680, U+2000–U+200A, U+202F, U+205F, U+3000), and U+2028 / U+2029.
+Notably **U+0085 (NEL) is not trimmed** even though it is Unicode
+`White_Space`, and **U+FEFF is trimmed** even though it is not — the Go
+port enumerates the set for this reason rather than delegating to
+`unicode.IsSpace`, which gets both of those backwards.
+`test/spec/trim.tsv` pins every member and the near-misses.
+
 ## Escape handling
 
 While scanning the value, when the current character equals `escapeChar`:
@@ -177,6 +191,12 @@ While scanning the value, when the current character equals `escapeChar`:
    character alone (default) or the escape char plus the next character
    (when `preserveEscapeChar` is `true`).
 3. Otherwise return an `invalid_escape` bad token (the parse throws).
+
+An `escapeChar` that is the **final character of the source** has nothing
+to escape. It consumes itself and the absent next character, so the scan
+runs past the end of the source and the block never reaches an end
+delimiter — not even a configured `''` (end-of-input) one. The block is
+therefore reported as unterminated (`invalid_text`).
 
 ## Value resolution
 
@@ -194,6 +214,7 @@ defines them via the grammar, not by hoover.
 | `val` rule missing at registration | thrown `Error` |
 | Start matched but no end delimiter reached | `invalid_text` bad token (parse throws) |
 | Unmapped escape with `allowUnknownEscape: false` | `invalid_escape` bad token (parse throws) |
+| `escapeChar` as the final source character | `invalid_text` bad token — the block cannot terminate (parse throws) |
 
 Once a block's start matches, the block is **committed**: a failure to
 terminate does not fall through to the next block.

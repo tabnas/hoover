@@ -314,6 +314,38 @@ func TestRuleContextState(t *testing.T) {
 		}},
 	})
 	parseEq(t, j3, `(@hi@)`, "hi")
+
+	// StateAny with NO parent/current filter still matches: turning the
+	// state check off leaves no rule condition at all, which is no
+	// constraint — not a failed one. Mirrors the TS `state: ''` case.
+	j4 := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:  "at",
+			Start: StartSpec{Fixed: []string{"@"}, Rule: &HooverRuleSpec{State: StateAny}},
+			End:   EndSpec{Fixed: []string{"@"}},
+		}},
+	})
+	parseEq(t, j4, `@hi@`, "hi")
+	parseEq(t, j4, `(@hi@)`, "hi")
+}
+
+// TestEscapeCharAtEndOfSource pins the truncated-escape case: an escape
+// char as the final source character has nothing to escape, so the block
+// never reaches its end delimiter (not even the configured EOF one) and is
+// reported as unterminated. Mirrors the TS test of the same name.
+func TestEscapeCharAtEndOfSource(t *testing.T) {
+	j := makeMini(t, map[string]any{
+		"block": []*Block{{
+			Name:       "a",
+			Start:      StartSpec{Fixed: []string{"~"}},
+			End:        EndSpec{Fixed: []string{">", ""}},
+			EscapeChar: "\\",
+		}},
+	})
+	parseEq(t, j, `~ab>`, "ab") // control: terminates normally
+	if _, err := j.Parse(`~ab\`); err == nil {
+		t.Fatalf("expected an error for a trailing escape char")
+	}
 }
 
 // TestParseToEnd exercises the exported ParseToEnd wrapper directly,

@@ -23,6 +23,14 @@ defining `val` must already be registered.
   something to plug hoover into without a grammar dependency.
 - `test/hoover.test.ts` — behavior tests driving the plugin through that
   grammar.
+- `test/parity.test.ts` — the shared `../../test/spec/*.tsv` fixtures,
+  auto-discovered; `../go/parity_test.go` runs the same files, so the two
+  ports cannot drift without one going red. Prefer a fixture there over an
+  assertion here whenever a case is expressible as input → output.
+- `test/doc-examples.test.ts` — runs the fenced `js` blocks carrying
+  `// =>` assertions in this repo's READMEs and docs.
+- `test/perf.test.ts` — a relative check that reusing one configured
+  instance beats rebuilding the plugin per parse.
 
 The key internals: `buildBlocks` applies defaults (`token` → `#HV`,
 `allowUnknownEscape` → `true`, `preserveEscapeChar` → `false`);

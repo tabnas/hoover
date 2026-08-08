@@ -5,11 +5,24 @@ package tabnashoover
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	tabnas "github.com/tabnas/parser/go"
 )
 
 const Version = "0.2.3"
+
+// Sentinels used by parseToEnd where canonical TS relies on `undefined`.
+// Both are negative, so they are outside the 0..255 range of any source byte
+// and can never be produced by indexing the source — the property that keeps
+// a literal NUL byte in the document from being read as end-of-input, or as
+// "this block has no escape character".
+const (
+	// endOfInput marks the "" end delimiter in the endchars table.
+	endOfInput = -1
+	// noEscapeChar marks a block with no escapeChar configured.
+	noEscapeChar = -2
+)
 
 // Block defines a hoover block configuration.
 type Block struct {
@@ -599,22 +612,31 @@ func parseToEnd(
 	endspec := block.End
 	fixed := endspec.Fixed
 
-	endchars := make([]byte, len(fixed))
+	// endchars holds the first byte of each end delimiter, widened to int so
+	// the two "no such byte" sentinels below cannot collide with real source
+	// data. Canonical TS gets this for free: `fixed.map(end => end[0])` yields
+	// `undefined` for the "" (end-of-input) delimiter and `block.escapeChar`
+	// is `undefined` when unset, and no source character ever equals
+	// `undefined`. A byte-typed Go mirror has no such spare value — using 0
+	// made a literal NUL in the source read as end-of-input (silently
+	// truncating any document containing one) and made escapeChar: "\u0000"
+	// read as "no escape char".
+	endchars := make([]int, len(fixed))
 	endseqs := make([]string, len(fixed))
 	for i, end := range fixed {
 		if len(end) > 0 {
-			endchars[i] = end[0]
+			endchars[i] = int(end[0])
 			endseqs[i] = end[1:]
 		} else {
-			// Empty string = EOF marker
-			endchars[i] = 0
+			// Empty string = end-of-input marker.
+			endchars[i] = endOfInput
 			endseqs[i] = ""
 		}
 	}
 
-	escapeChar := byte(0)
+	escapeChar := noEscapeChar
 	if block.EscapeChar != "" {
-		escapeChar = block.EscapeChar[0]
+		escapeChar = int(block.EscapeChar[0])
 	}
 
 	sI := hvpnt.SI
@@ -625,10 +647,12 @@ func parseToEnd(
 	endI := sI
 
 	for sI <= len(src) {
-		// EOF check
+		// End-of-input check: only the "" delimiter (endOfInput) ends the
+		// block here. No byte value can carry that sentinel, so a NUL in the
+		// source is ordinary content, as it is in TS.
 		if sI == len(src) {
-			for i, ec := range endchars {
-				if ec == 0 && endseqs[i] == "" {
+			for _, ec := range endchars {
+				if ec == endOfInput {
 					endI = sI
 					done = true
 					break
@@ -642,7 +666,7 @@ func parseToEnd(
 		// Check for end delimiters
 		endCharIndex := -1
 		for i, ec := range endchars {
-			if ec == c {
+			if ec == int(c) {
 				endCharIndex = i
 				break
 			}
@@ -666,7 +690,17 @@ func parseToEnd(
 		}
 
 		// Handle escape sequences
-		if escapeChar != 0 && c == escapeChar && sI+1 < len(src) {
+		if escapeChar != noEscapeChar && int(c) == escapeChar {
+			// An escape char as the final source character has nothing to
+			// escape. Mirroring canonical TS, it consumes itself and the
+			// absent next character, running the scan past the end of
+			// source: the block never reaches an end delimiter (not even a
+			// configured EOF one) and is reported as unterminated.
+			if sI+1 >= len(src) {
+				done = false
+				break
+			}
+
 			escaped := src[sI+1]
 			nextChar := string(escaped)
 			if block.Escape != nil {
@@ -805,14 +839,84 @@ func containsChar(s string, sub string) bool {
 	return false
 }
 
+// isTrimSpace reports whether r is removed by JavaScript's
+// String.prototype.trim, which the canonical TS port calls for `trim: true`.
+//
+// ECMA-262 defines the trimmed set as WhiteSpace ∪ LineTerminator:
+//
+//	WhiteSpace      TAB, VT, FF, ZWNBSP (U+FEFF), and every code point in
+//	                the Unicode Space_Separator (Zs) category — U+0020,
+//	                U+00A0, U+1680, U+2000..U+200A, U+202F, U+205F, U+3000.
+//	LineTerminator  LF, CR, LS (U+2028), PS (U+2029).
+//
+// The set is enumerated rather than delegated to unicode.IsSpace because the
+// two are NOT the same, in both directions:
+//
+//   - U+0085 NEL is Unicode White_Space (so unicode.IsSpace says yes) but is
+//     neither WhiteSpace nor LineTerminator in ECMA-262, so JS does not trim
+//     it. Go must not either.
+//   - U+FEFF ZWNBSP (the BOM) is explicitly WhiteSpace in ECMA-262 but is
+//     category Cf, not White_Space, so unicode.IsSpace says no. Go must trim
+//     it — a leading BOM otherwise survives into a hoovered value (and hence
+//     into an ini key) in Go but not in TS.
+//
+// Not in the set, and deliberately so: U+180E MONGOLIAN VOWEL SEPARATOR (Zs
+// only until Unicode 6.3, Cf since, and untrimmed by current JS engines) and
+// U+200B ZERO WIDTH SPACE (category Cf, never JS WhiteSpace).
+func isTrimSpace(r rune) bool {
+	switch r {
+	case
+		'\u0009', // TAB
+		'\u000A', // LF
+		'\u000B', // VT
+		'\u000C', // FF
+		'\u000D', // CR
+		'\u0020', // SPACE
+		'\u00A0', // NO-BREAK SPACE
+		'\u1680', // OGHAM SPACE MARK
+		'\u2000', // EN QUAD
+		'\u2001', // EM QUAD
+		'\u2002', // EN SPACE
+		'\u2003', // EM SPACE
+		'\u2004', // THREE-PER-EM SPACE
+		'\u2005', // FOUR-PER-EM SPACE
+		'\u2006', // SIX-PER-EM SPACE
+		'\u2007', // FIGURE SPACE
+		'\u2008', // PUNCTUATION SPACE
+		'\u2009', // THIN SPACE
+		'\u200A', // HAIR SPACE
+		'\u2028', // LINE SEPARATOR
+		'\u2029', // PARAGRAPH SEPARATOR
+		'\u202F', // NARROW NO-BREAK SPACE
+		'\u205F', // MEDIUM MATHEMATICAL SPACE
+		'\u3000', // IDEOGRAPHIC SPACE
+		'\uFEFF': // ZWNBSP (BOM)
+		return true
+	}
+	return false
+}
+
+// trimString mirrors JavaScript's String.prototype.trim exactly: it removes
+// leading and trailing code points in the ECMA-262 trim set (isTrimSpace).
+// It decodes runes rather than bytes so multi-byte members such as U+00A0 and
+// U+FEFF are recognised; invalid UTF-8 decodes to utf8.RuneError, which is
+// not in the set, so trimming stops there and the bytes are preserved.
 func trimString(s string) string {
 	start := 0
-	end := len(s)
-	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\r' || s[start] == '\n') {
-		start++
+	for start < len(s) {
+		r, size := utf8.DecodeRuneInString(s[start:])
+		if !isTrimSpace(r) {
+			break
+		}
+		start += size
 	}
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\r' || s[end-1] == '\n') {
-		end--
+	end := len(s)
+	for start < end {
+		r, size := utf8.DecodeLastRuneInString(s[start:end])
+		if !isTrimSpace(r) {
+			break
+		}
+		end -= size
 	}
 	return s[start:end]
 }

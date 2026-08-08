@@ -31,9 +31,38 @@ type specRow struct {
 
 func specDir() string { return filepath.Join("..", "test", "spec") }
 
+// specHex4 parses exactly four hex digits, reporting whether s is one.
+func specHex4(s string) (rune, bool) {
+	if len(s) != 4 {
+		return 0, false
+	}
+	var r rune
+	for i := 0; i < 4; i++ {
+		c := s[i]
+		switch {
+		case '0' <= c && c <= '9':
+			r = r<<4 | rune(c-'0')
+		case 'a' <= c && c <= 'f':
+			r = r<<4 | rune(c-'a'+10)
+		case 'A' <= c && c <= 'F':
+			r = r<<4 | rune(c-'A'+10)
+		default:
+			return 0, false
+		}
+	}
+	return r, true
+}
+
 // specUnescape decodes the escape set used in non-JSON columns. Kept
 // byte-identical to the TS loader so both runtimes feed the parser the exact
 // same source text.
+//
+// `\uXXXX` (exactly four hex digits) exists so a fixture can name a code
+// point that must not appear literally in the file: a NUL would make git
+// treat the .tsv as binary, and a BOM or a non-ASCII space is invisible in a
+// diff. Non-BMP code points are out of scope — TS decodes to one UTF-16 code
+// unit and Go to the rune's UTF-8 bytes, which agree on the BMP only, so a
+// fixture must not write a lone surrogate.
 func specUnescape(s string) string {
 	if !strings.Contains(s, `\`) {
 		return s
@@ -60,6 +89,14 @@ func specUnescape(s string) string {
 				b.WriteByte('\\')
 				i++
 				continue
+			case 'u':
+				if i+6 <= len(s) {
+					if r, ok := specHex4(s[i+2 : i+6]); ok {
+						b.WriteRune(r)
+						i += 5
+						continue
+					}
+				}
 			}
 		}
 		b.WriteByte(c)

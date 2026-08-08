@@ -220,11 +220,14 @@ function matchStart(
 
   let start = block.start
   let rulespec = null != start ? start.rule : null
+
+  // `null` means "no rule condition has been evaluated", which is not the
+  // same as "a condition failed": with no conditions there is nothing to
+  // constrain the match, so it passes. Each check below ANDs itself in.
   let matchRule: null | boolean = null
 
-  // NOTE: Default rules:
-  // - parent is pair,elem
-  // - state is open
+  // NOTE: Default rule state is open ('o'); there is no default parent or
+  // current filter — an absent filter simply imposes no constraint.
 
   if (null != rulespec) {
     if (rulespec.parent) {
@@ -263,9 +266,17 @@ function matchStart(
       (null === matchRule ? true : matchRule)
   }
 
+  // Resolve "no condition evaluated" (null) to a pass. Without this, a
+  // rulespec that only turns the state check off (`state: ''`) and sets no
+  // parent/current filter would leave matchRule null and be read as a
+  // failure, so the block could never match at all — the opposite of what
+  // "skip the state check" means. Mirrors the Go port's `matchRule != nil
+  // && !*matchRule` early return.
+  const ruleMatched: boolean = null === matchRule ? true : matchRule
+
   let matchFixed = true
   let fixed = null != start ? start.fixed : null
-  if (matchRule && null != fixed) {
+  if (ruleMatched && null != fixed) {
     matchFixed = false
 
     fixed = Array.isArray(fixed) ? fixed : [fixed]
@@ -295,7 +306,7 @@ function matchStart(
     }
   }
 
-  if (matchRule && matchFixed) {
+  if (ruleMatched && matchFixed) {
     let startsrc = src.substring(hvpnt.sI, sI)
 
     if (false !== block.trim) {
@@ -347,6 +358,12 @@ function parseToEnd(
   top: do {
     c = src[sI]
 
+    // Did this step consume a newline? Tracked separately because `c` is
+    // not always the source character: an escape may replace it, and with
+    // preserveEscapeChar it becomes a two-character sequence that never
+    // equals '\n'. Row/column tracking must follow the SOURCE.
+    let nl = false
+
     // Check for end
     if (-1 < (endCharIndex = endchars.indexOf(c))) {
       let tail = endseqs[endCharIndex]
@@ -370,15 +387,32 @@ function parseToEnd(
     }
 
     if (escapeChar === c) {
+      // An escape char as the final source character has nothing to escape.
+      // It consumes itself and the absent next character, which runs the
+      // scan past the end of source, so the block never reaches an end
+      // delimiter and the caller reports it as unterminated (invalid_text).
+      // Handled explicitly so an `undefined` is never pushed into the value.
+      if (src.length <= sI + 1) {
+        sI += 2
+        break top
+      }
+
       let replacement = block.escape ? block.escape[src[sI + 1]] : undefined
 
       if (null != replacement) {
         c = replacement
         sI++
         cI++
+        nl = '\n' === replacement
       } else if (block.allowUnknownEscape) {
-        c = block.preserveEscapeChar ? src.substring(sI, sI + 2) : src[sI + 1]
+        const escaped = src[sI + 1]
+        c = block.preserveEscapeChar ? src.substring(sI, sI + 2) : escaped
         sI++
+        // Both source characters (escape char + escaped char) are consumed,
+        // so both count towards the column, as in the mapped-escape branch
+        // above and in the Go port.
+        cI++
+        nl = '\n' === escaped
       } else {
         return {
           done: false,
@@ -386,12 +420,14 @@ function parseToEnd(
           bad: lex.bad('invalid_escape', sI, sI + 1),
         }
       }
+    } else {
+      nl = '\n' === c
     }
 
     valc.push(c)
     sI++
     cI++
-    if ('\n' === c) {
+    if (nl) {
       rI++
       cI = 1
     }

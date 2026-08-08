@@ -18,11 +18,14 @@ alone.
 
 The TypeScript implementation (`../ts/src/hoover.ts`) is canonical for
 parse behavior. When porting or fixing, read the TS source first and
-mirror it. The TS suite is the parity reference; it runs the shared
-`../test/spec/*.tsv` fixtures against the real tabnas grammar. The Go
-side has no JSON grammar dependency, so it cannot run those JSON
-fixtures — instead it verifies the same plugin behaviors (delimiters,
-escapes, trim, consume, EOF, rule-context) against a tiny local grammar.
+mirror it.
+
+Both runtimes run the **same** shared `../test/spec/*.tsv` fixtures —
+`parity_test.go` globs them here, `../ts/test/parity.test.ts` reads the
+same directory there — and both drive them through an identical tiny
+local grammar (`val` + a parenthesised `group`), not JSON. Those fixtures
+are the parity contract: neither port can drift without one going red.
+The in-language suites carry only the cases a fixture cannot express.
 Keep the Go behavior identical to TS for equivalent configs.
 
 ## Layout
@@ -41,6 +44,10 @@ Keep the Go behavior identical to TS for equivalent configs.
   it.
 - `hoover_test.go` — behavior tests driving the plugin through the mini
   grammar, plus the fail-fast and custom-token cases.
+- `parity_test.go` — `TestSpec` globs `../test/spec/*.tsv` and runs every
+  fixture through the mini grammar. The TS side runs the same files.
+- `perf_test.go` — a relative check that reusing one configured instance
+  beats rebuilding the plugin per parse.
 
 ## Registration API (differs from TS surface, same behavior)
 
@@ -105,9 +112,20 @@ go test -coverpkg=./... -cover ./...
 - The local test grammar is deliberately minimal. When you need to test
   a new behavior, extend it just enough — do not pull in a full grammar
   package; the engine-only dependency is intentional.
-- Two known Go/TS gaps, both rooted in the engine, not hoover:
-  `HooverRuleSpec.State == ""` cannot mean "skip the state check" the way
-  TS `state: ''` does (Go's zero value defaults to `"o"`); and the bare
-  Go engine ships no `value.def` keywords (`true`/`false`/`null`) while
-  the TS engine does, so value resolution needs the host grammar to
-  define them (the test grammar does). Keep both documented if touched.
+- Two Go/TS representation gaps, both rooted in the language or engine,
+  not in hoover's behavior:
+  - `HooverRuleSpec.State == ""` cannot mean "skip the state check" the
+    way TS `state: ''` does, because Go's zero value is indistinguishable
+    from unset (which defaults to `"o"`). The `StateAny` (`"*"`) sentinel
+    is the Go spelling of it, and `ruleSpecFromAny` maps a data-shape
+    `"state": ""` onto `StateAny`, so the shared fixtures exercise the
+    same behavior in both runtimes. Only a Go **struct literal** needs
+    `StateAny` written out. Note that a rulespec setting *only* the state
+    skip — no parent/current filter — must still match: an absent
+    condition is no constraint, not a failed one (hence the `matchRule
+    *bool` tri-state and its `matchRule != nil && !*matchRule` guard).
+  - The bare Go engine ships no `value.def` keywords
+    (`true`/`false`/`null`) while the TS engine does, so value resolution
+    needs the host grammar to define them (the test grammar does).
+
+  Keep both documented if touched.

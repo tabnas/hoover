@@ -13,13 +13,22 @@ Blank lines are skipped, and so are comment lines — a line starting with
 
 | Column | Meaning |
 |---|---|
-| `input` | Source for the test mini-grammar (see ts/test/minigrammar.ts and go/minigrammar_test.go). Escapes `\n` `\r` `\t` `\\` are decoded. |
+| `input` | Source for the test mini-grammar (see ts/test/minigrammar.ts and go/minigrammar_test.go). Escapes `\n` `\r` `\t` `\\` `\uXXXX` are decoded. |
 | `expected` | A JSON value (the parse result), or `ERROR` / `ERROR:<substring>` for inputs that must fail. |
 | `opts` | Optional JSON object of plugin options (empty means defaults). |
 
 `expected` and `opts` are **not** escape-decoded — they are raw JSON, so
 JSON's own escape rules apply (`"a\nb"` is a string containing a newline).
 To put a literal backslash in `input`, write `\\`.
+
+`\uXXXX` in `input` takes **exactly four hex digits** and exists so a case
+can name a code point that must not appear literally in the file: a NUL
+would make git treat the `.tsv` as binary, and a BOM or a non-ASCII space
+is invisible in a diff. It is limited to the BMP — TS decodes it to one
+UTF-16 code unit and Go to the rune's UTF-8 bytes, which agree below
+U+10000 only — so never write a lone surrogate. Anything that is not four
+hex digits after `\u` is left alone, so an existing literal `\u` in a
+source stays literal.
 
 Results are compared after a JSON round-trip, so key order and the
 `OrderedMap` / null-prototype-object representations do not affect the

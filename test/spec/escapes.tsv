@@ -7,3 +7,9 @@ input	expected	opts
 <a\\>b>	"a>b"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","escape":{">":">"},"allowUnknownEscape":false}]}
 <a\\zb>	ERROR	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","escape":{">":">"},"allowUnknownEscape":false}]}
 <a\\zb>	"a\\zb"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","preserveEscapeChar":true}]}
+~ab\\	ERROR	{"block":[{"name":"a","start":{"fixed":"~"},"end":{"fixed":[">",""]},"escapeChar":"\\"}]}
+<a\\zb> %	ERROR:1:8	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\"}]}
+<a\\\nb> %	ERROR:2:4	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\\","preserveEscapeChar":true}]}
+# "no escape char configured" is likewise a sentinel, not the byte 0: a block
+# may legitimately declare NUL as its escapeChar.
+<a\u0000>b>	"a>b"	{"block":[{"name":"angle","start":{"fixed":"<"},"end":{"fixed":">"},"escapeChar":"\u0000","escape":{">":">"}}]}

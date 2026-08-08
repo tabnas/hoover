@@ -22,8 +22,17 @@ const specDir = join(__dirname, '..', '..', 'test', 'spec')
 
 type SpecRow = { line: number; input: string; expected: string; opts: string }
 
+const HEX = /^[0-9a-fA-F]{4}$/
+
 // Decode the escape set used in non-JSON columns. Kept byte-identical to the
 // Go loader so both runtimes feed the parser the exact same source text.
+//
+// `\uXXXX` (exactly four hex digits) exists so a fixture can name a code
+// point that must not appear literally in the file: a NUL would make git
+// treat the .tsv as binary, and a BOM or a non-ASCII space is invisible in a
+// diff. Non-BMP code points are out of scope — TS decodes to one UTF-16 code
+// unit and Go to the rune's UTF-8 bytes, which agree on the BMP only, so a
+// fixture must not write a lone surrogate.
 function unescape(s: string): string {
   if (!s.includes('\\')) return s
   let out = ''
@@ -35,6 +44,11 @@ function unescape(s: string): string {
       if (n === 'r') { out += '\r'; i++; continue }
       if (n === 't') { out += '\t'; i++; continue }
       if (n === '\\') { out += '\\'; i++; continue }
+      if (n === 'u' && HEX.test(s.substring(i + 2, i + 6))) {
+        out += String.fromCharCode(parseInt(s.substring(i + 2, i + 6), 16))
+        i += 5
+        continue
+      }
     }
     out += c
   }
