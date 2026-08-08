@@ -30,8 +30,8 @@ by name.
 
 | Path | What it is |
 |---|---|
-| [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@tabnas/hoover` npm package (`0.13.1`). A single plugin in [`ts/src/hoover.ts`](ts/src/hoover.ts). Imports the engine as `@tabnas/parser`; peer-depends on it (`">=2"`). |
-| [`go/`](go/) | Go port — module `github.com/tabnas/hoover/go` (`const Version` in `go/hoover.go`, `0.1.7`), a single [`go/hoover.go`](go/hoover.go). Depends only on `github.com/tabnas/parser/go` (imported as `tabnas`). |
+| [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@tabnas/hoover` npm package (`0.2.3`). A single plugin in [`ts/src/hoover.ts`](ts/src/hoover.ts). Imports the engine as `@tabnas/parser`; peer-depends on it (`">=2"`). |
+| [`go/`](go/) | Go port — module `github.com/tabnas/hoover/go` (`const Version` in `go/hoover.go`, `0.2.3`), a single [`go/hoover.go`](go/hoover.go). Depends only on `github.com/tabnas/parser/go` (imported as `tabnas`). |
 | [`ts/doc/hoover-ts.md`](ts/doc/hoover-ts.md), [`go/doc/hoover-go.md`](go/doc/hoover-go.md) | Per-runtime tutorial → how-to → reference → explanation docs. |
 
 There is no grammar package: hoover's only production dependency is the
@@ -54,8 +54,9 @@ tagged packages:
   grammar repos — this repo currently has **no** `debug-model` test and
   **no** generated railroad diagram, so nothing imports them. Treat them
   as latent: don't claim a `debug.model()` test or a `grammar.svg`
-  exists here. The only `@tabnas` package under `ts/node_modules` is
-  `parser`.
+  exists here. All three are symlinked under `ts/node_modules/@tabnas`
+  (`parser`, `debug`, `railroad`) because they are declared, but `parser`
+  is the only one any source or test file imports.
 - Go: `go/go.mod` requires `github.com/tabnas/parser/go` with
   `replace github.com/tabnas/parser/go => ../../parser/go`. That is the
   module's **only** dependency.
@@ -107,17 +108,49 @@ CI below).
   A custom per-block `token` registers a distinct token but only the
   first occurrence of each token name adds a `val` alternate
   (`tokenMap`). Keep these defaults aligned with Go.
-- **`start.rule` gating** (the `matchStart` rule-context check) defaults
-  to parent `pair`/`elem`-style matching via `current`/`parent`
-  include/exclude lists and a `state` string. `state` defaults to `'o'`
-  (open); `state: ''` means *don't check the state* — and this is a known
-  Go gap: Go's zero-value `State == ""` cannot mean "skip" the way TS
-  does, because the Go zero value defaults to `"o"`. Documented in
-  `go/AGENTS.md`; don't "fix" it without an engine change.
+- **`start.rule` gating** (the `matchStart` rule-context check) filters on
+  `current`/`parent` include/exclude lists plus a `state` string. There is
+  no default parent or current filter — an absent filter imposes no
+  constraint. `state` defaults to `'o'` (open); `state: ''` means *don't
+  check the state*. Because an absent condition is *no constraint* rather
+  than a failed one, a rulespec that only sets `state: ''` still matches
+  (both runtimes track this with a tri-state "unevaluated" marker — TS
+  `matchRule === null`, Go `matchRule == nil` — resolved to a pass).
+  In Go the zero value `State == ""` cannot mean "skip", since unset
+  defaults to `"o"`; Go therefore exposes the dedicated `StateAny` (`"*"`)
+  sentinel for it, and the data/JSON option shape maps `"state": ""` onto
+  `StateAny` so the shared fixtures behave identically in both runtimes.
 - **`consume`** on `start`/`end` is `null | boolean | string[]`: `null`
   (default) and `true` consume the delimiter, `false` leaves it in the
   stream, an array consumes only the listed delimiters. Mirrored in Go
   as `any` (`nil`/`bool`/`*bool`/`[]string`).
+- **Escapes advance row/column by the SOURCE, not the value.** An escape
+  consumes two source characters, so both count towards the column — in
+  the mapped, unknown-but-allowed, and `preserveEscapeChar` branches
+  alike. Likewise the row bumps when the *escaped source character* is a
+  newline, which is not the same test as "the emitted value is a
+  newline": a mapped escape may replace it, and `preserveEscapeChar`
+  emits the two-character sequence, which never equals `'\n'`. `parseToEnd`
+  tracks this with a per-iteration `nl` flag in both runtimes. Positions
+  surface in user-facing error messages, and `test/spec/escapes.tsv` pins
+  two of them with `ERROR:<row>:<col>` fixtures.
+- **Where TS relies on `undefined`, Go needs an out-of-band sentinel.**
+  `parseToEnd` builds `endchars` from the end delimiters; the `""`
+  (end-of-input) delimiter maps to `undefined` in TS, which no source
+  character equals. The Go mirror must not spell that as byte `0` — a
+  literal NUL in the source then reads as end-of-input and silently
+  truncates the block. Same for "no `escapeChar` configured". Both use
+  negative constants (`endOfInput`, `noEscapeChar`) so they are outside
+  the byte range by construction. Keep that property in any rework.
+- **`trim` is JavaScript `String.prototype.trim`, not `unicode.IsSpace`.**
+  The trimmed set is ECMA-262 *WhiteSpace* ∪ *LineTerminator*, which
+  differs from Go's Unicode `White_Space` in both directions: U+0085 NEL
+  is `IsSpace` but is *not* trimmed, and U+FEFF (BOM) is *not* `IsSpace`
+  but *is* trimmed. Go enumerates the set in `isTrimSpace` for exactly
+  that reason; do not "simplify" it to `strings.TrimSpace` /
+  `unicode.IsSpace`. A leading BOM otherwise survives into a hoovered
+  value — visible downstream as a BOM-prefixed first key in
+  `@tabnas/ini`. `test/spec/trim.tsv` pins both directions.
 - **Value resolution** happens in `parseToEnd`: if `cfg.value.lex` is on
   and the hoovered text is a registered value keyword
   (`cfg.value.def[val]`), the token value becomes that keyword's value.
@@ -148,7 +181,7 @@ after editing `ts/src/` or `ts/test/*.ts`.
 Both the repo-root [`Makefile`](Makefile) and [`ts/Makefile`](ts/Makefile)
 wrap both halves: `make build|test|clean` run the TS and Go sides, and
 `make publish-go V=x.y.z` seds `V` into the `const Version` in
-`go/hoover.go` (currently `0.1.7`), commits, tags `go/vX.Y.Z`, and (when
+`go/hoover.go` (currently `0.2.3`), commits, tags `go/vX.Y.Z`, and (when
 `gh` is present) creates a GitHub release. `make tags-go` lists the Go
 tags. Local Go builds resolve the unpublished engine via the `replace`
 in `go/go.mod` (a sibling checkout); there is no checked-in `go.work`.
@@ -164,20 +197,35 @@ in `go/go.mod` (a sibling checkout); there is no checked-in `go.work`.
   blocks containing `// =>` assertions from this repo's READMEs and docs
   and runs them. Keep doc examples correct; mark illustrative blocks
   ` ```js ignore ` to opt them out.
+- [`ts/test/parity.test.ts`](ts/test/parity.test.ts) and
+  `go/parity_test.go` — the shared `test/spec/*.tsv` conformance
+  fixtures, auto-discovered by directory listing in both runtimes. See
+  [`test/AGENTS.md`](test/AGENTS.md). This is the mechanism that keeps
+  the two ports from drifting; prefer a fixture over an in-language
+  assertion whenever a case is expressible as input → output.
+- `ts/test/perf.test.ts` and `go/perf_test.go` — a ratio check that
+  reusing one configured instance is far cheaper than rebuilding the
+  plugin per parse. Relative, not an absolute timing budget.
 
 ## CI
 
-[`.github/workflows/build.yml`](.github/workflows/build.yml) is a
-**single TS-only `build` job** (Ubuntu/Windows/macOS, Node 24) — there is
-no separate `build-go` job here. It:
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) is a thin
+**caller** for the org-standard reusable workflow
+`tabnas/.github/.github/workflows/polyglot-ci.yml@main`. It passes only
+two inputs:
 
-- sets `git config --global core.autocrlf false` (LF line endings; CRLF
-  corrupts fixtures across the tabnas repos),
-- git-clones the tabnas closure (`parser debug json abnf railroad`) as
-  siblings,
-- runs `npm i && npm run build --if-present` in each of
-  `parser debug json hoover abnf railroad` (topo order), then
-- `npm test` in `hoover/ts`.
+- `deps: "parser debug json abnf railroad"` — the sibling repos cloned
+  for the build,
+- `build-order: "parser debug json hoover abnf railroad"` — topo order.
 
-The Go suite is not run in CI — run it locally (`make test-go` / `cd go
-&& go test ./...`).
+Everything else (OS matrix, Node version, the `core.autocrlf false`
+setting that keeps LF fixtures intact across the tabnas repos, the
+build/test steps) lives in the shared workflow, not here. It replaced an
+older in-repo `build.yml`; there is also a
+[`release.yml`](.github/workflows/release.yml). Note that the
+`.github/workflows/*` files are promoted by a maintainer via the
+`tabnas/admin` rollout script — session credentials cannot write them.
+
+Whether the Go suite runs is the shared workflow's business, not this
+repo's; run it locally regardless (`make test-go` / `cd go && go test
+./...`).

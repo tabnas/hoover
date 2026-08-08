@@ -179,4 +179,4 @@ system and the engine's Go conventions:
   `Value.Def`) for keyword resolution to apply.
 
 - **A `Version` constant.** The Go package exposes `Version` (e.g.
-  `"0.1.7"`); the TS package version lives in `package.json`.
+  `"0.2.3"`); the TS package version lives in `package.json`.

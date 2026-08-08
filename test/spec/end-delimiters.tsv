@@ -9,3 +9,11 @@ input	expected	opts
 ~a b\n	"a b"	{"block":[{"name":"line","start":{"fixed":"~"},"end":{"fixed":["\n","\r\n",""]}}]}
 ~a b\r\n	"a b"	{"block":[{"name":"line","start":{"fixed":"~"},"end":{"fixed":["\n","\r\n",""]}}]}
 ~a b	"a b"	{"block":[{"name":"line","start":{"fixed":"~"},"end":{"fixed":["\n","\r\n",""]}}]}
+# The "" (end-of-input) end delimiter must not be confused with a literal NUL
+# byte in the source. NUL is ordinary content: the block runs past it to the
+# real delimiter, or to the real end of input.
+~a\u0000b>	"a\u0000b"	{"block":[{"name":"tilde","start":{"fixed":"~"},"end":{"fixed":[">",""]}}]}
+~a\u0000b	"a\u0000b"	{"block":[{"name":"tilde","start":{"fixed":"~"},"end":{"fixed":[">",""]}}]}
+~a\u0000b	"a\u0000b"	{"block":[{"name":"tilde","start":{"fixed":"~"},"end":{"fixed":[""]}}]}
+# ...while a NUL configured as an actual end delimiter still ends the block.
+~ab\u0000	"ab"	{"block":[{"name":"tilde","start":{"fixed":"~"},"end":{"fixed":["\u0000"]}}]}

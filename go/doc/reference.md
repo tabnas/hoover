@@ -17,7 +17,7 @@ import (
 |---|---|---|
 | `Hoover` | `tabnas.Plugin` | The plugin value. Register with `j.UseDefaults(Hoover, Defaults, opts)`. |
 | `Defaults` | `map[string]any` | Default options deep-merged under the caller's options by `UseDefaults`. |
-| `Version` | `string` (const) | The module version (e.g. `"0.1.7"`). |
+| `Version` | `string` (const) | The module version (e.g. `"0.2.3"`). |
 | `Block` | struct | A single block definition. |
 | `StartSpec` | struct | A block's start configuration. |
 | `EndSpec` | struct | A block's end configuration. |
@@ -120,10 +120,43 @@ type Block struct {
 | `Escape` | `map[string]string` | — | Maps the character after `EscapeChar` to its replacement. |
 | `AllowUnknownEscape` | `*bool` | `nil` → `true` | `nil` or `&true` allows unmapped escapes (escape char dropped); `&false` rejects them with an `invalid_escape` error. |
 | `PreserveEscapeChar` | `bool` | `false` | When an unknown escape is allowed, `true` keeps the escape char in the output. |
-| `Trim` | `bool` | `false` | Strip leading/trailing whitespace from the value (internal whitespace kept). |
+| `Trim` | `bool` | `false` | Strip leading/trailing whitespace from the value (internal whitespace kept). See [Trim semantics](#trim-semantics). |
 
 The caller's `*Block` is **not** mutated: defaults and the internal token
 id are applied to a copy.
+
+### Trim semantics
+
+`Trim` removes exactly the code points JavaScript's
+`String.prototype.trim` removes, because the canonical TypeScript port
+calls that method. The set is ECMA-262 *WhiteSpace* ∪ *LineTerminator*:
+TAB, LF, VT, FF, CR, U+FEFF (ZWNBSP / BOM), the Unicode
+`Space_Separator` category (U+0020, U+00A0, U+1680, U+2000–U+200A,
+U+202F, U+205F, U+3000), and U+2028 / U+2029.
+
+It is enumerated in `isTrimSpace` rather than delegated to
+`unicode.IsSpace`, which is **not** the same set in either direction:
+
+| Code point | `unicode.IsSpace` | JS `trim` | hoover |
+|---|---|---|---|
+| U+0085 NEL | yes | no | not trimmed |
+| U+FEFF ZWNBSP (BOM) | no | yes | trimmed |
+
+The BOM row is the one that bites: a leading BOM (the `U+FEFF` in `"\ufeffa=1"` parsed through
+`@tabnas/ini`) otherwise survives into a key in Go but not in TS.
+U+180E and U+200B are category `Cf` and are trimmed by neither.
+`test/spec/trim.tsv` pins every member and both near-misses.
+
+### NUL is data, not a sentinel
+
+The `""` end delimiter (end-of-input) and "no `EscapeChar` configured"
+are marked in `parseToEnd` with the negative sentinels `endOfInput` and
+`noEscapeChar`, which no source byte can equal. Canonical TS gets this
+free from `undefined`; a byte-typed Go mirror does not, and encoding
+end-of-input as byte `0` made a literal NUL in the source truncate the
+block. A document containing NUL now hoovers intact, and a block may
+declare NUL as its `EscapeChar` or as an end delimiter. Pinned by
+`test/spec/end-delimiters.tsv` and `test/spec/escapes.tsv`.
 
 ## `StartSpec`
 
@@ -173,11 +206,19 @@ filters pass.
 |---|---|---|---|
 | `Parent` | `*HooverRuleFilter` | `nil` | Match on the current rule's *parent* rule name. |
 | `Current` | `*HooverRuleFilter` | `nil` | Match on the *current* rule name. |
-| `State` | `string` | `""` → `"o"` | Which rule states to match. `"o"` open, `"c"` close, `"oc"` either. The check passes if the current rule's state character is contained in this string. |
+| `State` | `string` | `""` → `"o"` | Which rule states to match. `"o"` open, `"c"` close, `"oc"` either. The check passes if the current rule's state character is contained in this string. `StateAny` (`"*"`) skips the state check. |
 
-> The zero value `State: ""` defaults to `"o"`; there is **no** Go
-> equivalent of the TS "`state: ''` skips the check". To also match in
-> the close state, use `"oc"`.
+> The zero value `State: ""` is indistinguishable from unset, so it
+> defaults to `"o"` rather than meaning "skip". `StateAny` (`"*"`, listed
+> under [Exports](#exports)) is the Go spelling of the TS
+> "`state: ''` skips the check"; a
+> data/JSON-shaped option `"state": ""` is mapped onto it automatically,
+> so only a Go struct literal needs it written out. To also match in the
+> close state, use `"oc"`.
+
+> Skipping the state check with `StateAny` and supplying no `Parent` or
+> `Current` filter leaves the block with no rule condition at all — which
+> is *no constraint*, so it matches everywhere, rather than nowhere.
 
 ## `HooverRuleFilter`
 
@@ -198,7 +239,7 @@ When both are set, both must pass.
 ## `Version`
 
 ```go
-const Version = "0.1.7"
+const Version = "0.2.3"
 ```
 
 ## Errors / bad tokens
@@ -208,6 +249,7 @@ const Version = "0.1.7"
 | `val` rule missing at registration | returned `error` from `Use`/`UseDefaults` |
 | Start matched but no end delimiter reached | `invalid_text` bad token (`Parse` returns an error) |
 | Unmapped escape with `AllowUnknownEscape: &false` | `invalid_escape` bad token (`Parse` returns an error) |
+| `EscapeChar` as the final source character | `invalid_text` bad token — nothing to escape, so the block cannot terminate (not even at a configured `""` end-of-input delimiter) |
 | Any unexpected panic | converted to an `error` (registration) or `invalid_text` bad token (matcher) |
 
 Once a block's start matches, the block is **committed**: a failure to
