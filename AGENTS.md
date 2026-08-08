@@ -181,10 +181,10 @@ after editing `ts/src/` or `ts/test/*.ts`.
 Both the repo-root [`Makefile`](Makefile) and [`ts/Makefile`](ts/Makefile)
 wrap both halves: `make build|test|clean` run the TS and Go sides, and
 `make publish-go V=x.y.z` seds `V` into the `const Version` in
-`go/hoover.go` (currently `0.2.3`), commits, tags `go/vX.Y.Z`, and (when
-`gh` is present) creates a GitHub release. `make tags-go` lists the Go
-tags. Local Go builds resolve the unpublished engine via the `replace`
-in `go/go.mod` (a sibling checkout); there is no checked-in `go.work`.
+`go/hoover.go`, commits, tags `go/vX.Y.Z`, and (when `gh` is present)
+creates a GitHub release. `make tags-go` lists the Go tags. Local Go
+builds resolve the unpublished engine via the `replace` in `go/go.mod`
+(a sibling checkout); there is no checked-in `go.work`.
 
 ## Tests
 
