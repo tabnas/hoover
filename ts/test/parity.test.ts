@@ -1,39 +1,41 @@
 /* Copyright (c) 2025 Richard Rodger and other contributors, MIT License */
 
 // Cross-runtime conformance, driven by the shared `test/spec/*.tsv` fixtures
-// at the repo root — the same convention @tabnas/parser and @tabnas/abnf use
-// (see ../../test/AGENTS.md).
+// at the repo root (see ../../test/AGENTS.md).
 //
-// `go/parity_test.go` discovers and runs the SAME files, so the two
-// implementations cannot drift without one of them going red.
-
-import { describe, test } from 'node:test'
-import assert from 'node:assert'
-import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+// The fixture loader, the escape codec, the `ERROR:` contract and the row
+// loop all come from @tabnas/support, whose Go half `go/parity_test.go`
+// uses to run the SAME files — so the two implementations cannot drift
+// without one of them going red, and neither can the two loaders.
+//
+// What is left here is only what is specific to hoover: the grammar it
+// extends, and what an `ERROR:` cell means.
 
 import { Tabnas } from '@tabnas/parser'
+import { findSpecDir, makeRunner } from '@tabnas/support'
+
 import { Hoover } from '../dist/hoover'
 import { miniGrammar } from './minigrammar'
 
-// At runtime this file is loaded from `dist-test/`, so hop up one level to
-// reach the shared spec directory in the repo root.
-const specDir = join(__dirname, '..', '..', 'test', 'spec')
-
-type SpecRow = { line: number; input: string; expected: string; opts: string }
-
 const HEX = /^[0-9a-fA-F]{4}$/
 
-// Decode the escape set used in non-JSON columns. Kept byte-identical to the
-// Go loader so both runtimes feed the parser the exact same source text.
+// The one thing this repo does not take from @tabnas/support: its own
+// escape codec, because hoover's fixtures need a sixth escape.
 //
-// `\uXXXX` (exactly four hex digits) exists so a fixture can name a code
-// point that must not appear literally in the file: a NUL would make git
-// treat the .tsv as binary, and a BOM or a non-ASCII space is invisible in a
-// diff. Non-BMP code points are out of scope — TS decodes to one UTF-16 code
-// unit and Go to the rune's UTF-8 bytes, which agree on the BMP only, so a
+// `\uXXXX` names a code point that must not appear literally in the file:
+// a NUL would make git treat the .tsv as binary, and a BOM or a non-ASCII
+// space is invisible in a diff. The shared codec passes `\u` through on
+// purpose — a fixture has to be able to carry a literal one — so it is
+// decoded here, in one pass over the RAW cell. Two passes cannot work:
+// after the shared codec, `\u0000` written plainly and `\\u0000` (an
+// escaped backslash) are the same six characters.
+//
+// Non-BMP code points are out of scope: TS decodes to one UTF-16 code unit
+// and Go to the rune's UTF-8 bytes, which agree on the BMP only, so a
 // fixture must not write a lone surrogate.
-function unescape(s: string): string {
+//
+// Kept byte-identical to specUnescape in go/parity_test.go.
+function unescapeHoover(s: string): string {
   if (!s.includes('\\')) return s
   let out = ''
   for (let i = 0; i < s.length; i++) {
@@ -55,77 +57,31 @@ function unescape(s: string): string {
   return out
 }
 
-function loadSpec(file: string): SpecRow[] {
-  const body = readFileSync(join(specDir, file), 'utf8')
-  const lines = body.split(/\r?\n/)
-  const rows: SpecRow[] = []
-  // Line 1 is the header naming the columns.
-  for (let i = 1; i < lines.length; i++) {
-    const raw = lines[i]
-    // A comment line starts with '#' and has no tab; a data row always has
-    // at least one (input + expected), so '#'-leading sources still work.
-    if (raw === '' || (raw.startsWith('#') && !raw.includes('\t'))) continue
-    const cols = raw.split('\t')
-    if (cols.length < 2) {
-      throw new Error(`${file}:${i + 1}: expected at least 2 tab-separated columns`)
-    }
-    rows.push({
-      line: i + 1,
-      input: unescape(cols[0]),
-      expected: cols[1],
-      opts: cols[2] ?? '',
-    })
-  }
-  return rows
-}
+makeRunner({
+  // The runner's own decoding of the input column is bypassed — see
+  // unescapeHoover above — so the raw cell is read and decoded here.
+  parse: (_input, row) => {
+    const input = unescapeHoover(row.named('input'))
+    // hoover has no grammar of its own: it extends whatever grammar
+    // supplies the `val` rule. The tiny local mini-grammar plays that part
+    // in both runtimes.
+    const opts = row.named('opts')
+    return new Tabnas()
+      .use(miniGrammar)
+      .use(Hoover, '' === opts.trim() ? {} : JSON.parse(opts))
+      .parse(input)
+  },
 
-// A truncated single-line rendering of the input, so a failure names its case.
-function label(s: string): string {
-  const one = s.replace(/\s+/g, ' ').trim()
-  return 60 < one.length ? one.slice(0, 57) + '...' : one
-}
-
-function runSpec(file: string) {
-  const rows = loadSpec(file)
-  describe('spec: ' + file, () => {
-    assert.ok(0 < rows.length, file + ': no cases')
-    for (const row of rows) {
-      test(`row ${row.line}: ${label(row.input)}`, () => {
-        const opts = '' === row.opts.trim() ? {} : JSON.parse(row.opts)
-        // hoover has no grammar of its own: it extends whatever grammar
-        // supplies the `val` rule. The tiny local mini-grammar plays that
-        // part in both runtimes.
-        const tn = new Tabnas().use(miniGrammar).use(Hoover, opts)
-
-        if (row.expected.startsWith('ERROR')) {
-          const want = row.expected.slice('ERROR'.length).replace(/^:/, '')
-          assert.throws(
-            () => tn.parse(row.input),
-            (err: Error) => '' === want || err.message.includes(want),
-            `${file}:${row.line}: expected ${row.expected}`,
-          )
-          return
-        }
-
-        const raw = tn.parse(row.input)
-
-        // A fixture that says `null` must not be satisfied by a parse that
-        // produced nothing: the two are different results.
-        assert.notStrictEqual(raw, undefined,
-          `${file}:${row.line}: no value; expected ${row.expected}`)
-
-        // Round-trip through JSON so null-prototype maps and numeric types
-        // compare structurally against the fixture's decoded shape.
-        const got = JSON.parse(JSON.stringify(raw))
-        assert.deepStrictEqual(got, JSON.parse(row.expected),
-          `${file}:${row.line}`)
-      })
-    }
-  })
-}
-
-// Auto-discover every fixture: adding a .tsv runs it in both runtimes
-// without touching either runner.
-for (const file of readdirSync(specDir).sort()) {
-  if (file.endsWith('.tsv')) runSpec(file)
-}
+  // hoover's `ERROR:<want>` cells name a POSITION — `1:8`, the line and
+  // column the rejection is reported at — not an error code. That is the
+  // thing worth pinning for a plugin whose job is to consume text up to a
+  // delimiter: rejecting at the wrong place is a different defect from
+  // rejecting for the wrong reason. So it is matched against the rendered
+  // message, and a bare `ERROR` still accepts any failure.
+  matchError: (err: any, want) => String(err?.message).includes(want),
+})
+  // `findSpecDir` walks up from this file — `dist-test/` at runtime — to the
+  // repo root's `test/spec`, so moving the suite does not mean recounting
+  // `..` hops. `dir` then auto-discovers every fixture in it, so adding a
+  // .tsv runs it in both runtimes without touching either runner.
+  .dir(findSpecDir(__dirname))
