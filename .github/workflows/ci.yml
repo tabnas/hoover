@@ -14,4 +14,4 @@ jobs:
     uses: tabnas/.github/.github/workflows/polyglot-ci.yml@main
     with:
       deps: "parser support"
-      build-order: "parser hoover"
+      build-order: "parser support hoover"
