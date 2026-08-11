@@ -13,7 +13,7 @@ import (
 // VERSION is this module's version. It MUST equal ts/package.json
 // "version": the release orchestrator rewrites both, and
 // TestVersionMatchesPackageJSON fails the build if they drift.
-const VERSION = "0.3.1"
+const VERSION = "0.3.2"
 
 // Sentinels used by parseToEnd where canonical TS relies on `undefined`.
 // Both are negative, so they are outside the 0..255 range of any source byte
