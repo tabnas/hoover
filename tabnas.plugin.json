@@ -1,0 +1,12 @@
+{
+  "$schema": "https://tabnas.dev/schema/plugin.schema.json",
+  "name": "@tabnas/hoover",
+  "go": "github.com/tabnas/hoover/go",
+  "description": "Whitespace-absorbing text capture for the tabnas engine.",
+  "engine": "@tabnas/parser",
+  "specDir": "test/spec",
+  "errorCodes": [],
+  "docs": "https://tabnas.dev/docs/packages",
+  "repository": "https://github.com/tabnas/hoover",
+  "versionSource": "ts/package.json"
+}
