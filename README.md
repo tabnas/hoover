@@ -12,6 +12,8 @@ parser engine that adds string *hoovering* — block-delimited strings
 with unquoted internal spaces. It is grammar-agnostic: it extends the
 host grammar's `val` rule, and its only dependency is the engine.
 
+Docs, guides, the error reference and the playground: **[tabnas.dev](https://tabnas.dev)**.
+
 ```js
 // '''...''' hoovers up everything between the delimiters, spaces and all:
 //   j.parse("'''hello world'''")  ->  "hello world"
