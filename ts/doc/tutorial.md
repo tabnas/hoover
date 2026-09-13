@@ -7,8 +7,8 @@ every step builds on the last, and the final code runs as-is.
 ## What you will build
 
 The tabnas engine, on its own, has no grammar and no string syntax. The
-**hoover** plugin lets you "vacuum up" a run of characters — including
-spaces and newlines — between a start and end delimiter, and turn it into
+**hoover** plugin lets you "vacuum up" a run of characters (including
+spaces and newlines) between a start and end delimiter, and turn it into
 a single string value. By the end you will parse this:
 
 ```text
@@ -17,7 +17,7 @@ a single string value. By the end you will parse this:
 
 into the JavaScript string `"hello world"`, spaces and all.
 
-## Step 1 — install the pieces
+## Step 1: install the pieces
 
 hoover is a plugin for the tabnas engine. You need both:
 
@@ -28,7 +28,7 @@ npm install @tabnas/parser @tabnas/hoover
 `@tabnas/parser` is a peer dependency (version `>=2`). hoover's only
 dependency is that engine.
 
-## Step 2 — understand the one prerequisite
+## Step 2: understand the one prerequisite
 
 hoover does not define a grammar. It *extends* a grammar you supply, by
 adding a new alternate to that grammar's `val` rule. So you must register
@@ -37,10 +37,10 @@ forget, `use(Hoover, ...)` throws a clear error instead of failing later.
 
 For this tutorial we use a deliberately tiny grammar: a single value,
 plus a parenthesised group. It is the same shape as the test suite's
-`minigrammar.ts`. You do not need to understand its internals yet — copy
+`minigrammar.ts`. You do not need to understand its internals yet; copy
 it as the host grammar that gives hoover a `val` rule to plug into.
 
-## Step 3 — write the program
+## Step 3: write the program
 
 Create a file and paste this in. The `grammar` function is the host
 grammar; the `Hoover` block defines the `'''...'''` syntax.
@@ -75,7 +75,7 @@ function grammar(tn) {
     rs.close([{ s: '#ZZ' }, { s: '#CP', b: 1 }])
   })
 
-  // group: '(' value ')' — yields the inner value.
+  // group: '(' value ')' yields the inner value.
   tn.rule('group', (rs) => {
     rs.bc((r) => { r.node = r.child.node })
     rs.open([{ s: '#OP', p: 'val' }])
@@ -97,7 +97,7 @@ j.parse("'''hello world'''")  // => "hello world"
 That is the whole happy path. `new Tabnas()` makes a bare engine, `.use(grammar)`
 gives it a `val` rule, and `.use(Hoover, ...)` adds the triple-quote block.
 
-## Step 4 — see what hoovering does for you
+## Step 4: see what hoovering does for you
 
 Run a few more inputs against the same `j` to see the point of the
 plugin: the characters between the delimiters are taken verbatim.
@@ -143,14 +143,14 @@ j.parse("('''x''')")          // => "x"
 
 Notice three things:
 
-1. The internal space in `hello world` is preserved — that is the
+1. The internal space in `hello world` is preserved: that is the
    "hoovering".
 2. Leading and trailing spaces inside `'''  spaced  '''` are kept too:
    hoover does **not** trim by default.
-3. `('''x''')` shows the block works wherever a value is expected — here,
+3. `('''x''')` shows the block works wherever a value is expected: here,
    nested inside the host grammar's parentheses.
 
-## Step 5 — terminate at end-of-input
+## Step 5: terminate at end-of-input
 
 Delimiters do not have to be symmetric. A common pattern is "start here,
 run to the end of the input". List the empty string `''` among the end
@@ -209,8 +209,8 @@ You have:
 
 Where to go next:
 
-- [Guide](guide.md) — focused recipes: escapes, trimming, controlling
+- [Guide](guide.md). Focused recipes: escapes, trimming, controlling
   delimiter consumption, restricting where a block matches.
-- [Reference](reference.md) — every option and type, precisely.
-- [Concepts](concepts.md) — how the matcher works and why it is built
+- [Reference](reference.md). Every option and type, precisely.
+- [Concepts](concepts.md). How the matcher works and why it is built
   this way.

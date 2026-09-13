@@ -12,12 +12,12 @@ differences are in the Go API shape (see
 ## What you will build
 
 The tabnas engine, on its own, has no grammar and no string syntax. The
-**hoover** plugin lets you "vacuum up" a run of characters — including
-spaces and newlines — between a start and end delimiter, and turn it into
+**hoover** plugin lets you "vacuum up" a run of characters (including
+spaces and newlines) between a start and end delimiter, and turn it into
 a single string value. By the end you will parse `'''hello world'''` into
 the Go string `"hello world"`, spaces and all.
 
-## Step 1 — install
+## Step 1: install
 
 hoover is a plugin for the tabnas engine. You need both modules:
 
@@ -37,7 +37,7 @@ import (
 
 hoover's only dependency is that engine.
 
-## Step 2 — understand the one prerequisite
+## Step 2: understand the one prerequisite
 
 hoover does not define a grammar. It *extends* a grammar you supply, by
 adding an alternate to that grammar's `val` rule. So you must register a
@@ -49,7 +49,7 @@ a parenthesised group. It is the same shape as the test suite's
 [`minigrammar_test.go`](../minigrammar_test.go). Copy it as the host
 grammar that gives hoover a `val` rule to plug into.
 
-## Step 3 — the host grammar
+## Step 3: the host grammar
 
 Define the tiny grammar as a `tabnas.Plugin`:
 
@@ -102,7 +102,7 @@ func grammar(j *tabnas.Tabnas, _ map[string]any) error {
         )
     })
 
-    // group: '(' value ')' — yields the inner value.
+    // group: '(' value ')' yields the inner value.
     j.Rule("group", func(rs *tabnas.RuleSpec, _ *tabnas.Parser) {
         rs.AddBC(func(r *tabnas.Rule, ctx *tabnas.Context) {
             if r.Child != nil {
@@ -116,10 +116,10 @@ func grammar(j *tabnas.Tabnas, _ map[string]any) error {
 }
 ```
 
-You do not need to understand its internals to use hoover — it just gives
+You do not need to understand its internals to use hoover; it just gives
 hoover a `val` rule.
 
-## Step 4 — register hoover and parse
+## Step 4: register hoover and parse
 
 Register the grammar, then hoover with a triple-quote block. Use
 `UseDefaults`, which deep-merges `tabnashoover.Defaults` (the default lex
@@ -155,9 +155,9 @@ func main() {
 rule, and `UseDefaults(Hoover, Defaults, ...)` adds the triple-quote
 block. `Parse` returns `(any, error)`.
 
-## Step 5 — see what hoovering does for you
+## Step 5: see what hoovering does for you
 
-Against the same `j`, these inputs show the point of the plugin — the
+Against the same `j`, these inputs show the point of the plugin: the
 characters between the delimiters are taken verbatim:
 
 ```go
@@ -167,9 +167,9 @@ j.Parse("('''x''')")         // "x"            (nested in a group)
 ```
 
 Note: hoover does **not** trim by default, and the block works wherever a
-value is expected — here nested inside the grammar's parentheses.
+value is expected: here nested inside the grammar's parentheses.
 
-## Step 6 — terminate at end-of-input
+## Step 6: terminate at end-of-input
 
 Delimiters need not be symmetric. List the empty string `""` among the
 end delimiters to mean "or end-of-input":
@@ -198,8 +198,8 @@ end-of-input.
 
 Next:
 
-- [Guide](guide.md) — escapes, trimming, delimiter consumption, rule
+- [Guide](guide.md). Escapes, trimming, delimiter consumption, rule
   context.
-- [Reference](reference.md) — every type and option.
-- [Concepts](concepts.md) — how it works, plus the differences from the
+- [Reference](reference.md). Every type and option.
+- [Concepts](concepts.md). How it works, plus the differences from the
   TS version.

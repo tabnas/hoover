@@ -57,7 +57,7 @@ type HooverOptions = {
 |---|---|---|---|
 | `block` | `Block[]` | `[]` | Block definitions. The matcher tries them in array order; the first whose start matches wins. |
 | `lex.order` | `number` | `4.5e6` | Where the hoover matcher runs in the lexer pipeline (lower = earlier). See [Matcher ordering](concepts.md#matcher-ordering). |
-| `action` | `AltAction` | — | An engine alt-action attached to each generated `val`-rule alternate. |
+| `action` | `AltAction` | (none) | An engine alt-action attached to each generated `val`-rule alternate. |
 
 ## `Block`
 
@@ -97,9 +97,9 @@ How the block begins.
 
 | Field | Type | Default | Behaviour |
 |---|---|---|---|
-| `start.fixed` | `string \| string[]` | — | The start delimiter(s). The first matching delimiter (in array order) opens the block. With no `fixed`, the start matches unconditionally (subject to `rule`). |
+| `start.fixed` | `string \| string[]` | (none) | The start delimiter(s). The first matching delimiter (in array order) opens the block. With no `fixed`, the start matches unconditionally (subject to `rule`). |
 | `start.consume` | `null \| boolean \| string[]` | consume (`true`) | `false` keeps the matched delimiter in the value; an array consumes only the listed delimiters; `null`/absent consumes. |
-| `start.rule` | object | — | Rule-context filters; see below. |
+| `start.rule` | object | (none) | Rule-context filters; see below. |
 
 #### `start.rule`
 
@@ -109,17 +109,17 @@ block opens only if **all** supplied filters pass.
 
 | Field | Type | Default | Behaviour |
 |---|---|---|---|
-| `parent.include` | `string[]` | — | Pass if the current rule's *parent* rule name is in the list. |
-| `parent.exclude` | `string[]` | — | Pass if the parent rule name is **not** in the list. |
-| `current.include` | `string[]` | — | Pass if the *current* rule name is in the list. |
-| `current.exclude` | `string[]` | — | Pass if the current rule name is **not** in the list. |
+| `parent.include` | `string[]` | (none) | Pass if the current rule's *parent* rule name is in the list. |
+| `parent.exclude` | `string[]` | (none) | Pass if the parent rule name is **not** in the list. |
+| `current.include` | `string[]` | (none) | Pass if the *current* rule name is in the list. |
+| `current.exclude` | `string[]` | (none) | Pass if the current rule name is **not** in the list. |
 | `state` | `string` | `'o'` | Which rule states to match. `'o'` = open, `'c'` = close, `'oc'` = either; `''` skips the state check. The check passes if the current rule's state character is contained in this string. |
 
 When no filters are supplied, the default behaviour is: state must be
 open (`'o'`).
 
 Supplying `state: ''` and no `parent`/`current` filter leaves the block
-with no rule condition at all — which is *no constraint*, so the block
+with no rule condition at all, which is *no constraint*, so the block
 matches everywhere, rather than nowhere.
 
 ### `end`
@@ -128,7 +128,7 @@ How the block terminates.
 
 | Field | Type | Default | Behaviour |
 |---|---|---|---|
-| `end.fixed` | `string \| string[]` | — | The end delimiter(s). The empty string `''` matches end-of-input. Multi-character delimiters are matched by first character then the remaining tail. |
+| `end.fixed` | `string \| string[]` | (none) | The end delimiter(s). The empty string `''` matches end-of-input. Multi-character delimiters are matched by first character then the remaining tail. |
 | `end.consume` | `null \| boolean \| string[]` | consume (`true`) | `false` leaves the matched end delimiter in the source for later matchers/rules; an array consumes only the listed delimiters; `null`/absent consumes. |
 
 ### `token`
@@ -155,14 +155,14 @@ character to its replacement. For example `{ n: '\n', '>': '>' }` maps
 `boolean`, default `true`. Controls escapes not present in the `escape`
 map:
 
-- `true` — the escape character is dropped and the following character is
-  kept literally (e.g. `\z` → `z`), unless `preserveEscapeChar` keeps it.
-- `false` — an unmapped escape raises an `invalid_escape` parse error.
+- `true`. The escape character is dropped and the following character is
+  kept literally (for example `\z` → `z`), unless `preserveEscapeChar` keeps it.
+- `false`. An unmapped escape raises an `invalid_escape` parse error.
 
 ### `preserveEscapeChar`
 
 `boolean`, default `false`. When an unknown escape is allowed, `true`
-keeps the escape character in the output (e.g. `\z` → `\z`) instead of
+keeps the escape character in the output (for example `\z` → `\z`) instead of
 dropping it.
 
 ### `trim`
@@ -171,12 +171,11 @@ dropping it.
 stripped from the value (internal whitespace is preserved). Also trims
 the captured start text.
 
-The trimmed set is exactly JavaScript's `String.prototype.trim`, i.e.
-ECMA-262 *WhiteSpace* ∪ *LineTerminator*: TAB, LF, VT, FF, CR, U+FEFF
+The trimmed set is exactly JavaScript's `String.prototype.trim`, that is, ECMA-262 *WhiteSpace* ∪ *LineTerminator*: TAB, LF, VT, FF, CR, U+FEFF
 (ZWNBSP / BOM), the Unicode `Space_Separator` category (U+0020, U+00A0,
 U+1680, U+2000–U+200A, U+202F, U+205F, U+3000), and U+2028 / U+2029.
 Notably **U+0085 (NEL) is not trimmed** even though it is Unicode
-`White_Space`, and **U+FEFF is trimmed** even though it is not — the Go
+`White_Space`, and **U+FEFF is trimmed** even though it is not, so the Go
 port enumerates the set for this reason rather than delegating to
 `unicode.IsSpace`, which gets both of those backwards.
 `test/spec/trim.tsv` pins every member and the near-misses.
@@ -195,7 +194,7 @@ While scanning the value, when the current character equals `escapeChar`:
 An `escapeChar` that is the **final character of the source** has nothing
 to escape. It consumes itself and the absent next character, so the scan
 runs past the end of the source and the block never reaches an end
-delimiter — not even a configured `''` (end-of-input) one. The block is
+delimiter, not even a configured `''` (end-of-input) one. The block is
 therefore reported as unterminated (`invalid_text`).
 
 ## Value resolution
@@ -203,8 +202,8 @@ therefore reported as unterminated (`invalid_text`).
 After a value is captured, if the host grammar enables value lexing and
 has a matching definition in `value.def` (for example `true`, `false`,
 `null`), the string is replaced by that defined value. So a block that
-hoovers `true` yields the boolean `true`, not the string `"true"` —
-**only** when the host grammar defines those keywords. A bare engine
+hoovers `true` yields the boolean `true`, not the string `"true"`,
+but **only** when the host grammar defines those keywords. A bare engine
 defines them via the grammar, not by hoover.
 
 ## Bad tokens / errors
@@ -214,7 +213,7 @@ defines them via the grammar, not by hoover.
 | `val` rule missing at registration | thrown `Error` |
 | Start matched but no end delimiter reached | `invalid_text` bad token (parse throws) |
 | Unmapped escape with `allowUnknownEscape: false` | `invalid_escape` bad token (parse throws) |
-| `escapeChar` as the final source character | `invalid_text` bad token — the block cannot terminate (parse throws) |
+| `escapeChar` as the final source character | `invalid_text` bad token; the block cannot terminate (parse throws) |
 
 Once a block's start matches, the block is **committed**: a failure to
 terminate does not fall through to the next block.
@@ -236,7 +235,7 @@ calls it internally.
 type ParseResult = {
   done: boolean   // true if an end delimiter (or EOF marker) was reached
   val: string     // the captured value (may be resolved to a non-string by the engine)
-  bad?: Token     // present when a scan error (e.g. invalid escape) occurred
+  bad?: Token     // present when a scan error (for example invalid escape) occurred
 }
 ```
 

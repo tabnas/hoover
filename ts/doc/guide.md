@@ -170,10 +170,10 @@ spaces.
 By default both the start and end delimiters are removed from the output.
 Use `consume` on either `start` or `end` to change that:
 
-- `consume: false` — leave the delimiter in the value (or, for an end
+- `consume: false`. Leave the delimiter in the value (or, for an end
   delimiter, leave it in the source for another matcher / the host
   grammar to handle).
-- `consume: [ ... ]` — consume only the listed delimiters; leave the
+- `consume: [ ... ]`. Consume only the listed delimiters; leave the
   others.
 
 ```js
@@ -231,8 +231,8 @@ j2.parse('~hi>')  // => "~hi"
 ```
 
 The end side works the same way. Leaving the end delimiter unconsumed is
-useful when the delimiter is a token the host grammar also needs to see —
-for example, the closing `)` of a group:
+useful when the delimiter is a token the host grammar also needs to see,
+for example the closing `)` of a group:
 
 ```js
 const { Tabnas } = require('@tabnas/parser')
@@ -367,7 +367,7 @@ j.parse('~a b')      // => "a b"
 Use `start.rule` to limit *where* a block matches, based on the rule the
 parser is in when the lexer reaches it. This lets the same delimiter mean
 different things in different positions. The rule names are whatever your
-grammar defines — here, `group` (the parenthesised rule) and `val`.
+grammar defines: here, `group` (the parenthesised rule) and `val`.
 
 ```js
 const { Tabnas } = require('@tabnas/parser')
@@ -396,7 +396,7 @@ function grammar(tn) {
 }
 
 // Match @...@ only when the current rule's parent is NOT `group`
-// (i.e. at the top level, not inside parentheses).
+// (that is, at the top level, not inside parentheses).
 const j = new Tabnas()
   .use(grammar)
   .use(Hoover, {
@@ -418,8 +418,8 @@ the parent rule is `group`, which is excluded, so hoover does not match;
 the host grammar's text matcher then reads `@hi@` literally.
 
 You can also filter on the **current** rule (`current.include` /
-`current.exclude`) and on the rule **state** (`state`: `'o'` for open —
-the default — `'c'` for close, `'oc'` for either, or `''` to skip the
+`current.exclude`) and on the rule **state** (`state`: `'o'` for open,
+the default, `'c'` for close, `'oc'` for either, or `''` to skip the
 state check entirely).
 
 ## Use a custom token name

@@ -7,7 +7,7 @@ exact API see the [reference](reference.md).
 ## What "hoovering" means
 
 Most parsers treat an unquoted run of text as a single token only until
-the first space — after that, the space is a separator and the rest is a
+the first space; after that, the space is a separator and the rest is a
 new token. "Hoovering" is the opposite intent: vacuum up a whole run of
 characters, **spaces and newlines included**, between an explicit start
 and end delimiter, and emit it as one string value.
@@ -31,7 +31,7 @@ hoover is a **syntax plugin**. It does two things on registration:
 1. **Adds a `val`-rule alternate.** The host grammar's `val` rule is the
    place where a single value is parsed. hoover adds an alternate to that
    rule which accepts its block token (`#HV` by default). This is why a
-   grammar defining `val` must be registered *first* — hoover has nothing
+   grammar defining `val` must be registered *first*: hoover has nothing
    to attach to otherwise, and it throws a clear error rather than
    silently creating an empty rule that fails confusingly later.
 
@@ -76,8 +76,8 @@ through to the next matcher in the pipeline.
 
 A key design choice: once a block's **start** matches, the matcher is
 *committed* to that block. If the scan never finds an end delimiter, or
-an escape is rejected, the matcher returns a **bad token** — it does not
-quietly fall through and try the next block. This makes failures explicit
+an escape is rejected, the matcher returns a **bad token**; it does not
+silently fall through and try the next block. This makes failures explicit
 (`invalid_text` for an unterminated block, `invalid_escape` for a bad
 escape) rather than producing a surprising alternative parse. It also
 keeps the cost bounded: the engine does not backtrack across blocks.
@@ -107,9 +107,9 @@ the string matcher would claim the first quote. Likewise an end-of-line
 
 You can move hoover by setting `lex.order`:
 
-- **Lower** (e.g. before fixed tokens) — to pre-empt even the structural
+- **Lower** (for example before fixed tokens), to pre-empt even the structural
   tokens. Rarely needed.
-- **Higher** (e.g. `7.5e6`, after numbers but before text) — for a block
+- **Higher** (for example `7.5e6`, after numbers but before text), for a block
   that should only apply to what would otherwise be plain text, leaving
   genuine numbers and strings to the built-in matchers.
 

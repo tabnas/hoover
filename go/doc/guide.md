@@ -93,10 +93,10 @@ j.Parse(`< a b >`)     // "a b"  internal space kept, edges trimmed
 By default both start and end delimiters are removed from the output.
 `Consume` on `StartSpec` and `EndSpec` is `any`:
 
-- `nil` (the default) — consume the delimiter.
-- `false` — keep the delimiter (for a start, in the value; for an end,
+- `nil` (the default). Consume the delimiter.
+- `false`. Keep the delimiter (for a start, in the value; for an end,
   in the source for another matcher / the host grammar).
-- a `[]string` — consume only the listed delimiters; leave the others.
+- a `[]string`. Consume only the listed delimiters; leave the others.
 
 ```go
 // Keep the start delimiter in the value.
@@ -130,7 +130,7 @@ j2.Parse(`~hi>`) // "~hi"  '~' kept
 ```
 
 Leaving an end delimiter unconsumed is useful when it is a token the host
-grammar also needs to see — for example the closing `)` of a group:
+grammar also needs to see, for example the closing `)` of a group:
 
 ```go
 j := tabnas.Make()
@@ -193,11 +193,11 @@ j.Parse("~a b")     // "a b"  EOF
 
 Use `Start.Rule` to limit *where* a block matches, based on the rule the
 parser is in when the lexer reaches it. The rule names are whatever your
-grammar defines — here `group` (the parenthesised rule) and `val`.
+grammar defines: here `group` (the parenthesised rule) and `val`.
 
 ```go
 // Match @...@ only when the current rule's parent is NOT `group`
-// (i.e. at the top level, not inside parentheses).
+// (that is, at the top level, not inside parentheses).
 j.UseDefaults(tabnashoover.Hoover, tabnashoover.Defaults, map[string]any{
     "block": []*tabnashoover.Block{
         {
@@ -222,11 +222,11 @@ the parent rule is `group`, which is excluded, so hoover does not match;
 the host grammar's text matcher reads `@hi@` literally.
 
 You can also filter on the **current** rule (`Current.Include` /
-`Current.Exclude`) and on the rule **state** (`State`: `"o"` for open —
-the default — `"c"` for close, `"oc"` for either).
+`Current.Exclude`) and on the rule **state** (`State`: `"o"` for open,
+the default, `"c"` for close, `"oc"` for either).
 
 > Go note: unlike TS, `State: ""` does **not** mean "skip the state
-> check" — the zero value cannot be distinguished from "unset", so it
+> check": the zero value cannot be distinguished from "unset", so it
 > defaults to `"o"`. Set `State: "oc"` to also match in the close state,
 > or use the sentinel `StateAny` (`"*"`) to skip the state check entirely
 > (the TS `state: ''` behaviour).

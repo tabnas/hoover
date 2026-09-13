@@ -87,9 +87,9 @@ map[string]any{
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
-| `block` | `[]*tabnashoover.Block` | — | Block definitions. The matcher tries them in slice order; the first whose start matches wins. |
+| `block` | `[]*tabnashoover.Block` | (none) | Block definitions. The matcher tries them in slice order; the first whose start matches wins. |
 | `lex` | `map[string]any{"order": int}` | `4500000` | Where the hoover matcher runs in the lexer pipeline (lower = earlier). |
-| `action` | `tabnas.AltAction` | — | Engine alt-action attached to each generated `val`-rule alternate. |
+| `action` | `tabnas.AltAction` | (none) | Engine alt-action attached to each generated `val`-rule alternate. |
 
 A malformed `lex` (missing, wrong type, or a non-`int` order) falls back
 to the default order instead of panicking.
@@ -112,12 +112,12 @@ type Block struct {
 
 | Field | Type | Default | Behaviour |
 |---|---|---|---|
-| `Name` | `string` | — | Label for the block. |
-| `Start` | `StartSpec` | — | How the block begins. |
-| `End` | `EndSpec` | — | How the block terminates. |
+| `Name` | `string` | (none) | Label for the block. |
+| `Start` | `StartSpec` | (none) | How the block begins. |
+| `End` | `EndSpec` | (none) | How the block terminates. |
 | `Token` | `string` | `"#HV"` | Token name produced for hoovered values. A `val` alternate is added once per distinct token name. |
-| `EscapeChar` | `string` | — | A single escape character (first byte used). When set, escapes are processed. |
-| `Escape` | `map[string]string` | — | Maps the character after `EscapeChar` to its replacement. |
+| `EscapeChar` | `string` | (none) | A single escape character (first byte used). When set, escapes are processed. |
+| `Escape` | `map[string]string` | (none) | Maps the character after `EscapeChar` to its replacement. |
 | `AllowUnknownEscape` | `*bool` | `nil` → `true` | `nil` or `&true` allows unmapped escapes (escape char dropped); `&false` rejects them with an `invalid_escape` error. |
 | `PreserveEscapeChar` | `bool` | `false` | When an unknown escape is allowed, `true` keeps the escape char in the output. |
 | `Trim` | `bool` | `false` | Strip leading/trailing whitespace from the value (internal whitespace kept). See [Trim semantics](#trim-semantics). |
@@ -170,7 +170,7 @@ type StartSpec struct {
 
 | Field | Type | Default | Behaviour |
 |---|---|---|---|
-| `Fixed` | `[]string` | — | Start delimiter(s); first match (in slice order) opens the block. With no `Fixed`, the start matches unconditionally (subject to `Rule`). |
+| `Fixed` | `[]string` | (none) | Start delimiter(s); first match (in slice order) opens the block. With no `Fixed`, the start matches unconditionally (subject to `Rule`). |
 | `Consume` | `any` | `nil` (consume) | `false` keeps the matched delimiter in the value; a `[]string` consumes only the listed delimiters. `bool` and `*bool` are accepted. |
 | `Rule` | `*HooverRuleSpec` | `nil` | Rule-context filters. |
 
@@ -185,7 +185,7 @@ type EndSpec struct {
 
 | Field | Type | Default | Behaviour |
 |---|---|---|---|
-| `Fixed` | `[]string` | — | End delimiter(s). The empty string `""` matches end-of-input. Multi-character delimiters are matched by first byte then the remaining tail. |
+| `Fixed` | `[]string` | (none) | End delimiter(s). The empty string `""` matches end-of-input. Multi-character delimiters are matched by first byte then the remaining tail. |
 | `Consume` | `any` | `nil` (consume) | `false` leaves the matched end delimiter in the source; a `[]string` consumes only the listed delimiters. |
 
 ## `HooverRuleSpec`
@@ -217,7 +217,7 @@ filters pass.
 > close state, use `"oc"`.
 
 > Skipping the state check with `StateAny` and supplying no `Parent` or
-> `Current` filter leaves the block with no rule condition at all — which
+> `Current` filter leaves the block with no rule condition at all, which
 > is *no constraint*, so it matches everywhere, rather than nowhere.
 
 ## `HooverRuleFilter`
@@ -252,7 +252,7 @@ Kept equal to `ts/package.json` "version" by the release orchestrator;
 | `val` rule missing at registration | returned `error` from `Use`/`UseDefaults` |
 | Start matched but no end delimiter reached | `invalid_text` bad token (`Parse` returns an error) |
 | Unmapped escape with `AllowUnknownEscape: &false` | `invalid_escape` bad token (`Parse` returns an error) |
-| `EscapeChar` as the final source character | `invalid_text` bad token — nothing to escape, so the block cannot terminate (not even at a configured `""` end-of-input delimiter) |
+| `EscapeChar` as the final source character | `invalid_text` bad token; nothing to escape, so the block cannot terminate (not even at a configured `""` end-of-input delimiter) |
 | Any unexpected panic | converted to an `error` (registration) or `invalid_text` bad token (matcher) |
 
 Once a block's start matches, the block is **committed**: a failure to

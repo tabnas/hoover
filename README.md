@@ -8,7 +8,7 @@
 <!-- /tabnas-badges -->
 
 A syntax plugin for the [tabnas](https://github.com/tabnas/parser)
-parser engine that adds string *hoovering* — block-delimited strings
+parser engine that adds string *hoovering*: block-delimited strings
 with unquoted internal spaces. It is grammar-agnostic: it extends the
 host grammar's `val` rule, and its only dependency is the engine.
 

@@ -2,7 +2,7 @@
 
 A Go port of [@tabnas/hoover](https://github.com/tabnas/hoover), a syntax
 plugin for the [tabnas](https://github.com/tabnas/parser) parser engine
-that adds configurable block-delimited string parsing — *hoovering* up
+that adds configurable block-delimited string parsing, *hoovering* up
 unquoted strings with internal spaces. Define custom string formats with
 start/end delimiters, escape sequences, and context-sensitive matching.
 
@@ -21,11 +21,11 @@ clear `error`.
 
 ## Documentation
 
-- [Tutorial](doc/tutorial.md) — zero to a working triple-quote parser.
-- [How-to guide](doc/guide.md) — escapes, trimming, delimiter
+- [Tutorial](doc/tutorial.md). Zero to a working triple-quote parser.
+- [How-to guide](doc/guide.md). Escapes, trimming, delimiter
   consumption, rule-context matching.
-- [Reference](doc/reference.md) — every type, option, and the package API.
-- [Concepts](doc/concepts.md) — how the matcher works, plus the
+- [Reference](doc/reference.md). Every type, option, and the package API.
+- [Concepts](doc/concepts.md). How the matcher works, plus the
   **differences from the TS version**.
 
 ## Quick example
@@ -62,7 +62,7 @@ func main() {
 ```
 
 For a minimal, runnable grammar to plug hoover into, see
-[`minigrammar_test.go`](minigrammar_test.go) — the tiny `val` + `group`
+[`minigrammar_test.go`](minigrammar_test.go), the tiny `val` + `group`
 grammar the test suite uses. The [tutorial](doc/tutorial.md) walks
 through it step by step.
 
