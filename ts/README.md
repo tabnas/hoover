@@ -1,7 +1,7 @@
 # @tabnas/hoover
 
 A [tabnas](https://github.com/tabnas/parser) parser-engine syntax plugin
-that adds configurable block-delimited string parsing — *hoovering* up
+that adds configurable block-delimited string parsing, *hoovering* up
 unquoted strings with internal spaces. Define custom string formats with
 start/end delimiters, escape sequences, and context-sensitive matching.
 Its only dependency is the engine; it extends whatever grammar you
@@ -21,11 +21,11 @@ hoover plugin. If `val` is absent, `use(Hoover, …)` throws a clear error.
 
 ## Documentation
 
-- [Tutorial](doc/tutorial.md) — zero to a working triple-quote parser.
-- [How-to guide](doc/guide.md) — escapes, trimming, delimiter
+- [Tutorial](doc/tutorial.md). Zero to a working triple-quote parser.
+- [How-to guide](doc/guide.md). Escapes, trimming, delimiter
   consumption, rule-context matching.
-- [Reference](doc/reference.md) — every export, option, and type.
-- [Concepts](doc/concepts.md) — how the matcher works and why.
+- [Reference](doc/reference.md). Every export, option, and type.
+- [Concepts](doc/concepts.md). How the matcher works and why.
 
 The Go port lives in [`../go`](../go) with its own
 [four-quadrant docs](../go/doc).
@@ -35,7 +35,7 @@ The Go port lives in [`../go`](../go) with its own
 hoover extends a grammar you supply. This self-contained example
 registers a tiny inline host grammar (a single value plus a parenthesised
 `group`, the same shape as [`test/minigrammar.ts`](test/minigrammar.ts))
-before the hoover plugin, then parses triple-quoted strings — which
+before the hoover plugin, then parses triple-quoted strings, which
 preserve internal whitespace.
 
 ```js

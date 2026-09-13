@@ -1,7 +1,7 @@
 # Concepts (Go)
 
 How hoover works, how it relates to the tabnas engine, and the design
-trade-offs — for the Go port, `tabnashoover`. For task recipes see the
+trade-offs, for the Go port `tabnashoover`. For task recipes see the
 [guide](guide.md); for the exact API see the [reference](reference.md).
 
 This Go port tracks the canonical TypeScript implementation. The
@@ -12,7 +12,7 @@ the end.
 ## What "hoovering" means
 
 Most parsers treat an unquoted run of text as a single token only until
-the first space — after that, the space is a separator. "Hoovering" is
+the first space; after that, the space is a separator. "Hoovering" is
 the opposite intent: vacuum up a whole run of characters, **spaces and
 newlines included**, between an explicit start and end delimiter, and
 emit it as one string value.
@@ -31,10 +31,10 @@ registration:
 1. **Adds a `val`-rule alternate.** The host grammar's `val` rule is
    where a single value is parsed. hoover prepends an alternate to that
    rule which accepts its block token (`#HV` by default). This is why a
-   grammar defining `val` must be registered *first* — hoover has nothing
+   grammar defining `val` must be registered *first*: hoover has nothing
    to attach to otherwise, and `Use`/`UseDefaults` returns a clear
-   `error` (it checks for a `val` rule with usable open alternates, not
-   just the key) rather than silently producing a broken parser.
+   `error` instead of silently producing a broken parser. The check looks
+   for a `val` rule with usable open alternates, not for the key alone.
 
 2. **Installs a lexer matcher.** hoover registers a matcher named
    `hoover` in the tokenization pipeline via `SetOptions` (under
@@ -77,7 +77,7 @@ through to the next matcher in the pipeline.
 A key design choice: once a block's **start** matches, the matcher is
 *committed* to that block. If the scan never finds an end delimiter, or
 an escape is rejected, the matcher returns a **bad token**
-(`invalid_text` or `invalid_escape`) — it does not quietly fall through
+(`invalid_text` or `invalid_escape`); it does not silently fall through
 and try the next block. Failures are explicit rather than producing a
 surprising alternative parse, and the engine does not backtrack across
 blocks.
@@ -108,10 +108,9 @@ lex order decides where it slots among the engine's built-in matchers:
 | 8e6 | Text |
 
 The default `4500000` places hoover **before** the string, number and
-text matchers — deliberately, so a triple-quote block beats the ordinary
+text matchers, deliberately, so a triple-quote block beats the ordinary
 string matcher (which would otherwise claim the first quote), and an
-end-of-line block beats the text matcher. Set `lex.order` higher (e.g.
-`7500000`, after numbers but before text) for a block that should only
+end-of-line block beats the text matcher. Set `lex.order` higher (for example `7500000`, after numbers but before text) for a block that should only
 apply to what would otherwise be plain text. Use `tabnas.Describe(j)` to
 confirm the registered matcher priority while debugging.
 
@@ -119,7 +118,7 @@ confirm the registered matcher priority while debugging.
 
 After capturing the value, hoover consults the host grammar's value
 definitions. If value lexing is enabled (`cfg.ValueLex`) and the captured
-string matches a defined value (`cfg.ValueDef`, e.g. `true`/`false`/`null`
+string matches a defined value (`cfg.ValueDef`, for example `true`/`false`/`null`
 or whatever the grammar defines), the string is replaced by that value.
 So hoovering `true` yields the Go `bool` `true`, and `null` yields `nil`.
 
