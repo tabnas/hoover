@@ -19,15 +19,16 @@ Docs, guides, the error reference and the playground: **[tabnas.dev](https://tab
 //   j.parse("'''hello world'''")  ->  "hello world"
 ```
 
-This repository contains two implementations:
+This repository contains three implementations:
 
 | Path | Description |
 |---|---|
 | [`ts/`](ts/) | **Canonical** TypeScript / JavaScript implementation. |
 | [`go/`](go/) | Go port (tracks the TS version). |
+| [`rs/`](rs/) | Rust port, the `tabnas-hoover` crate (tracks the TS version). |
 
 Each depends only on the tabnas engine and is tested against an identical
-tiny local grammar (`val` + a parenthesised `group`); the two suites use
+tiny local grammar (`val` + a parenthesised `group`); the three suites use
 matching cases to stay aligned.
 
 ## Documentation
@@ -41,8 +42,10 @@ Four-quadrant [Diátaxis](https://diataxis.fr) docs in each language:
 | Reference (API) | [ts/doc/reference.md](ts/doc/reference.md) | [go/doc/reference.md](go/doc/reference.md) |
 | Concepts (understand) | [ts/doc/concepts.md](ts/doc/concepts.md) | [go/doc/concepts.md](go/doc/concepts.md) |
 
-See [`ts/README.md`](ts/README.md) and [`go/README.md`](go/README.md) for
-language-specific orientation.
+See [`ts/README.md`](ts/README.md), [`go/README.md`](go/README.md) and
+[`rs/README.md`](rs/README.md) for language-specific orientation. The
+Rust crate has its front page only; the four-quadrant docs are a
+TypeScript and Go feature.
 
 ## License
 
