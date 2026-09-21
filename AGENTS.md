@@ -127,11 +127,13 @@ CI below).
 - **`start.rule` gating** (the `matchStart` rule-context check) filters on
   `current`/`parent` include/exclude lists plus a `state` string. There is
   no default parent or current filter — an absent filter imposes no
-  constraint. The start rule's parent is the engine's unnamed sentinel
-  rule (TS `NORULE`), which no `parent.include` entry matches and every
-  `parent.exclude` passes; in Rust the start rule has no parent at all
-  and `match_start` resolves that the same way. Do not give it a name
-  such as `"none"`: a user could then list it. `state` defaults to `'o'` (open); `state: ''` means *don't
+  constraint. The start rule's parent is the engine's sentinel rule (TS
+  `NORULE`), whose name is the empty string: only a `parent.include`
+  entry of `""` matches it and only a `parent.exclude` entry of `""`
+  rejects it. In Rust the start rule has no parent at all, and
+  `match_start` reads the missing parent as that empty name so the two
+  agree. Do not give it any other name, such as `"none"`: a user could
+  then list it. `state` defaults to `'o'` (open); `state: ''` means *don't
   check the state*. Because an absent condition is *no constraint* rather
   than a failed one, a rulespec that only sets `state: ''` still matches
   (both runtimes track this with a tri-state "unevaluated" marker — TS

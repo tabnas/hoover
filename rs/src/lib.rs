@@ -147,12 +147,11 @@ impl HooverRuleFilter {
         }
     }
 
-    /// `name` is `None` for a rule that has no name to match: the start
-    /// rule's parent. TypeScript's sentinel rule there has no name, so no
-    /// include list holds it and every exclude list omits it.
-    fn passes(&self, name: Option<&str>, match_rule: &mut Option<bool>) {
-        let listed =
-            |list: &[String]| name.is_some_and(|name| list.iter().any(|entry| entry == name));
+    /// `name` is the empty string for the start rule's parent: TypeScript's
+    /// sentinel rule there is named `""`, so `""` is the one entry that
+    /// lists it.
+    fn passes(&self, name: &str, match_rule: &mut Option<bool>) {
+        let listed = |list: &[String]| list.iter().any(|entry| entry == name);
         if let Some(include) = &self.include {
             and_into(match_rule, listed(include));
         }
@@ -694,6 +693,17 @@ fn install(parser: &mut Tabnas, options: &HooverOptions) -> Result<(), HooverErr
 
     for block in &options.block {
         let token_name = block.token_name().to_string();
+        // The alt is declared through the serialized document, where a
+        // token name is one whitespace-free word; refuse anything else
+        // here, with a message that names the cause, rather than let the
+        // alt filter check below report it as an exclusion.
+        if token_name.is_empty() || token_name.chars().any(char::is_whitespace) {
+            return Err(HooverError(format!(
+                "tabnas-hoover: block {:?} has the token name {:?}; \
+                 a token name is a non-empty word without whitespace",
+                block.name, token_name
+            )));
+        }
         let tin = parser.token(token_name.clone());
 
         // Only the first occurrence of each token name adds a `val`
@@ -873,16 +883,17 @@ fn match_start(rest: &str, rule: &Rule, block: &Block) -> Option<usize> {
     if let Some(rulespec) = rulespec {
         if let Some(parent) = &rulespec.parent {
             // The start rule has no parent here; in the canonical engine
-            // it has an unnamed sentinel one. Either way no listed name
-            // matches it, so an include fails and an exclude passes.
+            // it has a sentinel one whose name is the empty string, so
+            // `""` is the one entry a list can name it by. Read the
+            // missing parent as that name so the two agree.
             let parent_name = rule
                 .parent_rule
                 .as_deref()
-                .map(|parent| parent.name.as_ref());
+                .map_or("", |parent| parent.name.as_ref());
             parent.passes(parent_name, &mut match_rule);
         }
         if let Some(current) = &rulespec.current {
-            current.passes(Some(rule.name.as_ref()), &mut match_rule);
+            current.passes(rule.name.as_ref(), &mut match_rule);
         }
     }
 

@@ -23,21 +23,26 @@ only production dependency is the engine.
 
 ## Use
 
-```rust,ignore
+```rust,no_run
 use tabnas::Tabnas;
 use tabnas_hoover::{hoover, Block, HooverOptions};
 
-let mut parser = Tabnas::new();
-register_host_grammar(&mut parser); // any grammar that defines `val`
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut parser = Tabnas::new();
+    // Install a host grammar that defines the `val` rule here: hoover
+    // refuses a bare engine.
 
-hoover(
-    &mut parser,
-    HooverOptions::new(vec![
-        Block::delimited("triplequote", "'''", "'''"),
-    ]),
-)?;
+    hoover(
+        &mut parser,
+        HooverOptions::new(vec![
+            Block::delimited("triplequote", "'''", "'''"),
+        ]),
+    )?;
 
-let value = parser.parse("'''hello world'''")?; // "hello world"
+    let value = parser.parse("'''hello world'''")?; // "hello world"
+    println!("{value:?}");
+    Ok(())
+}
 ```
 
 A block is a [`Block`]: a name, a start (fixed delimiters, whether a
@@ -91,7 +96,7 @@ extern prelude.
 
 ## Differences from the canonical TypeScript
 
-All deliberate, and each is a matter of typing rather than behaviour:
+Deliberate, and each a matter of typing rather than behaviour:
 
 - **Options are a typed struct.** The alternate action is a Rust
   callback, and no serialized value can carry one, so `HooverOptions`
@@ -107,19 +112,17 @@ All deliberate, and each is a matter of typing rather than behaviour:
   rule, a host whose alt filter drops the block alternate, and a
   grammar the engine refuses all come back as `HooverError`, as they do
   in Go.
-- **The block token is positioned at its start.** The canonical
-  implementation records the end of the block as the token's position;
-  this port, like Go, records where the block began. The value, the
-  position of every later token and the engines' error messages are
-  identical; the difference shows only in the token's own `sI`, `rI`
-  and `cI`, as an action reads them.
-
-One difference is behavioural, and it is recorded in
-[`../DIVERGENCE.md`](../DIVERGENCE.md): after a *mapped* escape, the
+Two differences are behavioural, and both are recorded in
+[`../DIVERGENCE.md`](../DIVERGENCE.md). After a *mapped* escape, the
 canonical implementation and Go advance the row when the replacement
 is a newline, while this port advances it when the escaped source
-character is a newline. The hoovered value is the same; the row and
-column of an error reported after such a block differ.
+character is a newline: the hoovered value is the same, and the row and
+column of an error reported after such a block differ. And the block
+token is positioned at its start here, as in Go, where the canonical
+implementation records the end of the block: the value, every later
+token's position and the error messages are identical, and the
+difference shows only in the token's own `si`, `ri` and `ci` as an
+action reads them.
 
 ## Build and test
 

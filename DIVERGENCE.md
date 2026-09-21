@@ -54,3 +54,27 @@ then needs no change. Pinned by `row_after_a_mapped_escape_follows_the_source`
 in `rs/tests/hoover_test.rs`, which fails when the engine or the port
 starts producing the TypeScript rows, so that this entry is deleted
 rather than outlived.
+
+### Position of the block token
+
+`hooverMatcher` in `ts/src/hoover.ts` builds the `#HV` token from
+`hvpnt` after `parseToEnd` has moved it past the end delimiter, so the
+token's own `sI`, `rI` and `cI` name the **end** of the block. Every
+matcher the engine ships builds a token at the point where it begins,
+and so do both ports: `go/hoover.go` reads the cursor before
+`matchStart`, and `rs/src/lib.rs` captures `lexer.point()` before it
+advances.
+
+| input | TypeScript | Go | Rust |
+|---|---|---|---|
+| two spaces, `'''a` newline `b'''` | `sI` 11, 2:5 | `SI` 2, 1:3 | `si` 2, 1:3 |
+
+The value, the position of every later token and the rendered error
+messages are identical in all three runtimes; the difference is visible
+only to an action that reads the block token's position through
+`rule.o0`. The repair is in TypeScript: build the token from the point
+captured before `matchStart`, as the engine's own matchers do. The ports
+then need no change. Pinned by `the_block_token_is_positioned_at_its_start`
+in `rs/tests/hoover_test.rs`, which fails when the port starts producing
+the TypeScript position, so that this entry is deleted rather than
+outlived.

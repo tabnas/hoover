@@ -585,24 +585,64 @@ fn version_is_exported() {
 
 #[test]
 fn rule_context_parent_at_the_start_rule() {
-    // The start rule has no parent. In TypeScript it has an unnamed
-    // sentinel one, so no `parent.include` entry matches it and every
-    // `parent.exclude` passes; nothing a user can list, "none" included,
-    // names it.
-    let parser = make_mini(one(Block::delimited("at", "@", "@").with_rule(
-        HooverRuleSpec {
-            parent: Some(HooverRuleFilter::include(&["none"])),
-            ..Default::default()
-        },
-    )));
-    parse_str(&parser, "@hi@", "@hi@"); // include never matches at the root
-    let parser = make_mini(one(Block::delimited("at", "@", "@").with_rule(
-        HooverRuleSpec {
-            parent: Some(HooverRuleFilter::exclude(&["none"])),
-            ..Default::default()
-        },
-    )));
-    parse_str(&parser, "@hi@", "hi"); // exclude always passes at the root
+    // The start rule has no parent. In TypeScript it has a sentinel one
+    // whose name is the empty string, so `""` is the one entry that names
+    // it: "none" (or any other word) never matches at the root and never
+    // excludes it, while `""` does both, and only at the root.
+    let at_root = |parent: HooverRuleFilter| {
+        make_mini(one(Block::delimited("at", "@", "@").with_rule(
+            HooverRuleSpec {
+                parent: Some(parent),
+                ..Default::default()
+            },
+        )))
+    };
+    let parser = at_root(HooverRuleFilter::include(&["none"]));
+    parse_str(&parser, "@hi@", "@hi@"); // a word never matches at the root
+    let parser = at_root(HooverRuleFilter::exclude(&["none"]));
+    parse_str(&parser, "@hi@", "hi"); // and never excludes it
+    let parser = at_root(HooverRuleFilter::include(&[""]));
+    parse_str(&parser, "@hi@", "hi"); // the empty name is the root's parent
+    parse_str(&parser, "(@hi@)", "@hi@"); // and nothing else's
+    let parser = at_root(HooverRuleFilter::exclude(&[""]));
+    parse_str(&parser, "@hi@", "@hi@"); // so it excludes the root
+    parse_str(&parser, "(@hi@)", "hi"); // and nothing else
+}
+
+#[test]
+fn a_token_name_with_whitespace_is_refused_by_name() {
+    // The alt is declared through the serialized document, so a token
+    // name has to be one word; the refusal has to say so rather than
+    // surface as the alt-filter message.
+    for bad in ["", "#H V", "#a\nb"] {
+        let mut block = Block::delimited("tq", "'''", "'''");
+        block.token = Some(bad.into());
+        let mut parser = Tabnas::new();
+        mini_grammar(&mut parser);
+        let error = hoover(&mut parser, one(block)).expect_err("refused");
+        assert!(error.0.contains("token name"), "{bad:?}: {error}");
+    }
+}
+
+#[test]
+fn the_block_token_is_positioned_at_its_start() {
+    // Recorded in ../DIVERGENCE.md ("Position of the block token").
+    // TypeScript builds the token from the point AFTER `parseToEnd`, so
+    // its `sI`, `rI` and `cI` name the end of the block (11, 2, 5 for the
+    // input below); this port and Go build it where the block begins. If
+    // this assertion starts failing with the TypeScript values, delete the
+    // DIVERGENCE.md entry along with this test.
+    type Seen = Arc<Mutex<Option<(usize, usize, usize, usize)>>>;
+    let seen: Seen = Arc::new(Mutex::new(None));
+    let sink = Arc::clone(&seen);
+    let options = one(Block::delimited("tq", "'''", "'''")).with_action(move |rule, _context| {
+        let site = rule.o0().expect("the block token").site;
+        *sink.lock().expect("lock") = Some((site.si, site.pos, site.ri, site.ci));
+        Ok(())
+    });
+    let parser = make_mini(options);
+    parse_str(&parser, "  '''a\nb'''", "a\nb");
+    assert_eq!(*seen.lock().expect("lock"), Some((2, 2, 1, 3)));
 }
 
 #[test]

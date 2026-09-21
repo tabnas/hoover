@@ -64,9 +64,11 @@ engine's serialized document, not through typed option fields:
   `../DIVERGENCE.md` and `row_after_a_mapped_escape_follows_the_source`
   in `tests/hoover_test.rs`.
 - `match_start` sees `parent_rule: None` on the start rule. TypeScript
-  gives that rule an unnamed sentinel parent, so no `parent.include`
-  list matches it and every `parent.exclude` passes; `HooverRuleFilter::passes`
-  takes an `Option<&str>` for exactly that. Do not substitute a name.
+  gives that rule a sentinel parent whose name is the empty string, so
+  a `parent.include` list matches it only with a `""` entry and a
+  `parent.exclude` list rejects it only with one; `match_start` reads
+  the missing parent as `""` for exactly that reason. Do not substitute
+  any other name.
 - The token is built with `lexer.token(...)` from the point captured
   BEFORE advancing, and `use_data_mut()` carries `{block: name}`, the
   `tkn.use = { block }` the TypeScript sets.
