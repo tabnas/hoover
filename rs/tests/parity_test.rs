@@ -127,10 +127,19 @@ fn runner() -> Runner {
     // column the rejection is reported at, not an error code. That is
     // the thing worth pinning for a plugin whose job is to consume text
     // up to a delimiter: rejecting at the wrong place is a different
-    // defect from rejecting for the wrong reason. So it is matched
-    // against the rendered message, and a bare `ERROR` still accepts any
-    // failure.
-    .match_error(|failure, want, _row| failure.message.contains(want))
+    // defect from rejecting for the wrong reason. So it is compared with
+    // the failure's own row and column, exactly, and a bare `ERROR` still
+    // accepts any failure.
+    .match_error(|failure, want, _row| match position(want) {
+        Some((row, col)) => failure.row == Some(row) && failure.col == Some(col),
+        None => failure.message.contains(want),
+    })
+}
+
+/// `1:8` as a (row, column) pair; anything else is not a position.
+fn position(want: &str) -> Option<(usize, usize)> {
+    let (row, col) = want.split_once(':')?;
+    Some((row.parse().ok()?, col.parse().ok()?))
 }
 
 /// Every fixture in the spec directory. `find_spec_dir` walks up from

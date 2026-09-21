@@ -21,9 +21,19 @@ path = "src/lib.rs"
 # repo. The `tabnas` crate is not published, so there is no registry
 # version to fall back on.
 tabnas = { path = "../../parser/rs" }
-serde_json = { version = "1.0", features = ["preserve_order"] }
+# Only for `HooverOptions::from_json`, the reader of the shared data
+# shape, and only when a consumer asks for it: the engine stays the sole
+# production dependency.
+serde_json = { version = "1.0", features = ["preserve_order"], optional = true }
+
+[features]
+serde_json = ["dep:serde_json"]
 
 [dev-dependencies]
+# The tests read the fixtures' `opts` column through `from_json`, so they
+# turn the feature on for this crate itself.
+tabnas-hoover = { path = ".", features = ["serde_json"] }
+serde_json = "1.0"
 # The shared fixture runner. Its Go and TypeScript halves drive the same
 # `test/spec/*.tsv` files through the same loader, so the three suites
 # cannot drift from each other.

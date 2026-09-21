@@ -124,7 +124,7 @@ decodes the RAW `input` cell itself, because hoover's fixtures need a
 sixth escape, `\uXXXX`, which the shared codec passes through on
 purpose. `spec_unescape` is kept in step with `unescapeHoover`
 (TypeScript) and `specUnescape` (Go). The `opts` column is read with
-`HooverOptions::from_json` and a fresh parser is built per row, as the
+`HooverOptions::from_json` (behind the `serde_json` feature, off by default) and a fresh parser is built per row, as the
 other runners do.
 
 `ERROR:<row>:<col>` cells name a POSITION and are matched against the

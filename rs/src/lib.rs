@@ -41,7 +41,8 @@ use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use serde_json::{json, Value as JsonValue};
+#[cfg(feature = "serde_json")]
+use serde_json::Value as JsonValue;
 use tabnas::{
     ActionError, Context, GrammarError, GrammarSpec, ImperativeLexMatcher, Lexer, Options, Plugin,
     PluginError, Rule, RuleState, Tabnas, Tin, Token, Value,
@@ -373,6 +374,10 @@ impl HooverOptions {
     /// An `escapeChar` longer than one character, or a value of the
     /// wrong type where the shape is fixed, is an error. Unknown keys are
     /// ignored, as they are in both other runtimes.
+    ///
+    /// Available with the `serde_json` feature, which is off by default
+    /// so that the crate's only production dependency stays the engine.
+    #[cfg(feature = "serde_json")]
     pub fn from_json(document: &JsonValue) -> Result<Self, HooverError> {
         let map = document
             .as_object()
@@ -401,6 +406,7 @@ impl HooverOptions {
 
 /// Look a key up exactly, then case-insensitively, so both the TypeScript
 /// spelling (`escapeChar`) and the Go field name (`EscapeChar`) resolve.
+#[cfg(feature = "serde_json")]
 fn field<'a>(map: &'a serde_json::Map<String, JsonValue>, key: &str) -> Option<&'a JsonValue> {
     map.get(key).or_else(|| {
         map.iter()
@@ -410,6 +416,7 @@ fn field<'a>(map: &'a serde_json::Map<String, JsonValue>, key: &str) -> Option<&
 }
 
 /// A `fixed`-style field: a single string or a list of them.
+#[cfg(feature = "serde_json")]
 fn strings_from_json(value: &JsonValue, label: &str) -> Result<Vec<String>, HooverError> {
     match value {
         JsonValue::String(text) => Ok(vec![text.clone()]),
@@ -427,6 +434,7 @@ fn strings_from_json(value: &JsonValue, label: &str) -> Result<Vec<String>, Hoov
     }
 }
 
+#[cfg(feature = "serde_json")]
 fn consume_from_json(
     map: &serde_json::Map<String, JsonValue>,
     label: &str,
@@ -444,6 +452,7 @@ fn consume_from_json(
     }
 }
 
+#[cfg(feature = "serde_json")]
 fn filter_from_json(value: &JsonValue, label: &str) -> Result<HooverRuleFilter, HooverError> {
     let map = value
         .as_object()
@@ -458,6 +467,7 @@ fn filter_from_json(value: &JsonValue, label: &str) -> Result<HooverRuleFilter, 
     })
 }
 
+#[cfg(feature = "serde_json")]
 fn rule_from_json(value: &JsonValue, label: &str) -> Result<HooverRuleSpec, HooverError> {
     let map = value
         .as_object()
@@ -477,6 +487,7 @@ fn rule_from_json(value: &JsonValue, label: &str) -> Result<HooverRuleSpec, Hoov
     })
 }
 
+#[cfg(feature = "serde_json")]
 fn block_from_json(value: &JsonValue) -> Result<Block, HooverError> {
     let map = value
         .as_object()
@@ -520,6 +531,23 @@ fn block_from_json(value: &JsonValue) -> Result<Block, HooverError> {
         .and_then(JsonValue::as_bool)
         .unwrap_or(false);
 
+    // A present `start` or `end` of the wrong shape is a configuration
+    // error, not an absent one: silently dropping it would broaden the
+    // match to "no fixed delimiter" and hoover unrelated input.
+    if let Some(start) = field(map, "start") {
+        if !start.is_null() && !start.is_object() {
+            return Err(HooverError(format!(
+                "hoover: {label}.start must be an object"
+            )));
+        }
+    }
+    if let Some(end) = field(map, "end") {
+        if !end.is_null() && !end.is_object() {
+            return Err(HooverError(format!(
+                "hoover: {label}.end must be an object"
+            )));
+        }
+    }
     if let Some(start) = field(map, "start").and_then(JsonValue::as_object) {
         let start_label = format!("{label}.start");
         block.start = Some(StartSpec {
@@ -610,6 +638,25 @@ impl MatcherConfig {
 /// each other's action or matcher factory.
 static INSTALLS: AtomicUsize = AtomicUsize::new(0);
 
+/// Quote `text` as a JSON string literal for the grammar document.
+fn json_string(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
 fn install(parser: &mut Tabnas, options: &HooverOptions) -> Result<(), HooverError> {
     // Hoover extends the host grammar's `val` rule. Fail fast with a clear
     // message if a grammar providing it has not been registered first.
@@ -637,7 +684,7 @@ fn install(parser: &mut Tabnas, options: &HooverOptions) -> Result<(), HooverErr
 
     let mut prepared: Vec<Prepared> = Vec::with_capacity(options.block.len());
     let mut token_map: Vec<(String, Tin)> = Vec::new();
-    let mut alts: Vec<JsonValue> = Vec::new();
+    let mut alts: Vec<String> = Vec::new();
 
     if let Some(action) = options.action.clone() {
         parser.action_with_context(action_ref.clone(), move |rule, context| {
@@ -653,13 +700,14 @@ fn install(parser: &mut Tabnas, options: &HooverOptions) -> Result<(), HooverErr
         // alternate. Each is PREPENDED, as `rs.open(...)` does in
         // TypeScript, so the alts are listed in reverse block order.
         if !token_map.iter().any(|(name, _)| *name == token_name) {
-            let mut alt = json!({ "s": token_name });
+            let mut alt = format!("{{\"s\":{}", json_string(&token_name));
             if options.action.is_some() {
-                alt["a"] = JsonValue::String(action_ref.clone());
+                alt.push_str(&format!(",\"a\":{}", json_string(&action_ref)));
             }
             if !groups.is_empty() {
-                alt["g"] = JsonValue::String(groups.clone());
+                alt.push_str(&format!(",\"g\":{}", json_string(&groups)));
             }
+            alt.push('}');
             alts.insert(0, alt);
             token_map.push((token_name.clone(), tin));
         }
@@ -684,19 +732,20 @@ fn install(parser: &mut Tabnas, options: &HooverOptions) -> Result<(), HooverErr
     });
 
     let order = options.lex_order.unwrap_or(DEFAULT_LEX_ORDER);
-    let document = json!({
-        "options": {
-            "lex": {
-                "match": {
-                    "hoover": { "order": order, "make": make_ref },
-                },
-            },
-        },
-        "rule": {
-            "val": { "open": alts },
-        },
-    });
-    let spec = GrammarSpec::from_value(document)?;
+    if !order.is_finite() {
+        return Err(HooverError(
+            "hoover: lex.order must be a finite number".into(),
+        ));
+    }
+    // Written as JSON text rather than built with serde_json, so the
+    // engine stays this crate's only production dependency.
+    let document = format!(
+        "{{\"options\":{{\"lex\":{{\"match\":{{\"hoover\":{{\"order\":{order},\"make\":{make}}}}}}}}},\
+         \"rule\":{{\"val\":{{\"open\":[{alts}]}}}}}}",
+        make = json_string(&make_ref),
+        alts = alts.join(",")
+    );
+    let spec = GrammarSpec::from_json(&document)?;
     parser.grammar(&spec)?;
 
     // Check rather than assume that the alts survive the host's alt
@@ -940,7 +989,15 @@ fn parse_to_end(
                 return Err(Rejected::Unterminated);
             };
             let after = next + escaped.len_utf8();
-            if let Some(replacement) = block.escape.get(&escaped.to_string()) {
+            // TypeScript reads one UTF-16 code unit here, so a character
+            // outside the BMP can never match a key of the escape map and
+            // always takes the unknown-escape path. Same here.
+            let mapped = if (escaped as u32) <= 0xFFFF {
+                block.escape.get(&escaped.to_string())
+            } else {
+                None
+            };
+            if let Some(replacement) = mapped {
                 value.push_str(replacement);
             } else if block.allow_unknown() {
                 if block.preserve_escape_char {

@@ -634,3 +634,45 @@ fn row_after_a_mapped_escape_follows_the_source() {
         ("unexpected", 2, 4)
     );
 }
+
+#[test]
+fn an_astral_escape_key_never_matches_as_in_typescript() {
+    // TypeScript indexes one UTF-16 code unit after the escape character,
+    // so a key outside the BMP cannot match and the character takes the
+    // unknown-escape path. The Rust lookup could see the whole character
+    // and must not.
+    let parser = make_mini(one(Block::delimited("angle", "<", ">")
+        .with_escape_char('\\')
+        .with_escape("\u{1F600}", "X")
+        .with_escape("n", "\n")));
+    parse_str(&parser, "<a\\\u{1F600}b>", "a\u{1F600}b"); // unknown escape: char kept
+    parse_str(&parser, "<a\\nb>", "a\nb"); // a BMP key still maps
+}
+
+#[test]
+fn a_malformed_start_or_end_is_rejected_by_from_json() {
+    let bad_start: serde_json::Value =
+        serde_json::from_str(r#"{"block":[{"name":"angle","start":"<","end":{"fixed":">"}}]}"#)
+            .expect("json");
+    let error = HooverOptions::from_json(&bad_start).expect_err("start must be an object");
+    assert!(
+        error.to_string().contains(".start must be an object"),
+        "{error}"
+    );
+
+    let bad_end: serde_json::Value =
+        serde_json::from_str(r#"{"block":[{"name":"angle","start":{"fixed":"<"},"end":5}]}"#)
+            .expect("json");
+    let error = HooverOptions::from_json(&bad_end).expect_err("end must be an object");
+    assert!(
+        error.to_string().contains(".end must be an object"),
+        "{error}"
+    );
+
+    // null is "absent", as in both other runtimes.
+    let null_start: serde_json::Value =
+        serde_json::from_str(r#"{"block":[{"name":"angle","start":null,"end":{"fixed":">"}}]}"#)
+            .expect("json");
+    let options = HooverOptions::from_json(&null_start).expect("null start is absent");
+    assert!(options.block[0].start.is_none());
+}

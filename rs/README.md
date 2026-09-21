@@ -65,7 +65,7 @@ fn main() {
 ```
 
 The options the other runtimes take as plain data (`{"block": [...],
-"lex": {"order": n}}`) are read by `HooverOptions::from_json`, with each
+"lex": {"order": n}}`) are read by `HooverOptions::from_json` (behind the `serde_json` feature, off by default), with each
 block's fields spelled as in TypeScript.
 
 Every token a block emits carries `{block: <name>}` in its `use` bag,

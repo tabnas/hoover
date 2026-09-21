@@ -102,7 +102,7 @@ CI below).
    Rust uses `Vec<Block>`). In Rust the options are a typed
    `HooverOptions` struct rather than the engine's plugin-option bag,
    because the `action` is a callback; the data shape the other runtimes
-   take is read by `HooverOptions::from_json`.
+   take is read by `HooverOptions::from_json` (behind the `serde_json` feature, off by default).
 4. Once a block's start matches, the block is **committed**: failing to
    reach an end delimiter (or hitting a rejected escape) is an error
    (a bad token: `invalid_text` for an unterminated block,
