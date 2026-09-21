@@ -354,7 +354,7 @@ func TestParseToEnd(t *testing.T) {
 	// Happy path: scan to the ';' end delimiter and consume it.
 	lex := tabnas.NewLex("hello;rest", tabnas.DefaultLexConfig())
 	pnt := lex.Cursor()
-	hvpnt := &tabnas.Point{Len: pnt.Len, SI: pnt.SI, RI: pnt.RI, CI: pnt.CI}
+	hvpnt := &tabnas.Point{Len: pnt.Len, Site: pnt.Site}
 	block := &Block{Name: "t", End: EndSpec{Fixed: []string{";"}}}
 
 	res := ParseToEnd(lex, hvpnt, block, nil)
@@ -374,7 +374,7 @@ func TestParseToEnd(t *testing.T) {
 	// Escape handling: unknown escape with AllowUnknownEscape=false errors.
 	lex2 := tabnas.NewLex(`a\zb;`, tabnas.DefaultLexConfig())
 	pnt2 := lex2.Cursor()
-	hvpnt2 := &tabnas.Point{Len: pnt2.Len, SI: pnt2.SI, RI: pnt2.RI, CI: pnt2.CI}
+	hvpnt2 := &tabnas.Point{Len: pnt2.Len, Site: pnt2.Site}
 	allow := false
 	block2 := &Block{
 		Name:               "t",

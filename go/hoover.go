@@ -399,10 +399,8 @@ var Hoover tabnas.Plugin = func(j *tabnas.Tabnas, opts map[string]any) (err erro
 				pnt := lex.Cursor()
 
 				hvpnt := &tabnas.Point{
-					Len: pnt.Len,
-					SI:  pnt.SI,
-					RI:  pnt.RI,
-					CI:  pnt.CI,
+					Len:  pnt.Len,
+					Site: pnt.Site,
 				}
 
 				sr := matchStart(lex, hvpnt, block)
