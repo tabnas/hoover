@@ -1,8 +1,9 @@
 # Agents Guide — shared spec fixtures
 
-`spec/*.tsv` holds the cross-runtime conformance fixtures. Both runtimes
-auto-discover and run **every** file in this directory, so a change here
-affects TypeScript and Go together — edit with that in mind.
+`spec/*.tsv` holds the cross-runtime conformance fixtures. All three
+runtimes auto-discover and run **every** file in this directory, so a
+change here affects TypeScript, Go and Rust together — edit with that in
+mind.
 
 ## Format
 
@@ -13,7 +14,7 @@ Blank lines are skipped, and so are comment lines — a line starting with
 
 | Column | Meaning |
 |---|---|
-| `input` | Source for the test mini-grammar (see ts/test/minigrammar.ts and go/minigrammar_test.go). Escapes `\n` `\r` `\t` `\\` `\uXXXX` are decoded. |
+| `input` | Source for the test mini-grammar (see ts/test/minigrammar.ts, go/minigrammar_test.go and rs/tests/common/mini_grammar.rs). Escapes `\n` `\r` `\t` `\\` `\uXXXX` are decoded. |
 | `expected` | A JSON value (the parse result), or `ERROR` / `ERROR:<position>` for inputs that must fail. Unlike the rest of the fleet the text after the colon is a POSITION — `1:8`, the line and column the rejection is reported at — matched against the rendered message. For a plugin whose job is to consume text up to a delimiter, rejecting at the wrong place is a different defect from rejecting for the wrong reason. A bare `ERROR` accepts any failure. |
 | `opts` | Optional JSON object of plugin options (empty means defaults). |
 
@@ -28,7 +29,7 @@ is invisible in a diff. It is limited to the BMP — TS decodes it to one
 UTF-16 code unit and Go to the rune's UTF-8 bytes, which agree below
 U+10000 only — so never write a lone surrogate. Anything that is not four
 hex digits after `\u` is left alone, so an existing literal `\u` in a
-source stays literal.
+source stays literal. Rust decodes it to the same `char`.
 
 Results are compared after a JSON round-trip, so key order and the
 `OrderedMap` / null-prototype-object representations do not affect the
@@ -38,22 +39,24 @@ comparison.
 
 - TypeScript: `ts/test/parity.test.ts` — `makeRunner(...).dir(...)`.
 - Go: `go/parity_test.go` — `support.Runner{...}.Dir(t, dir)`.
+- Rust: `rs/tests/parity_test.rs` — `Runner::new_with_row(...).dir(&dir)`.
 
-Both are short, holding only what is specific to hoover: the mini-grammar
-it extends, how to build the parser for a row's options, the position
-matching for an `ERROR:` cell, and the `\uXXXX` escape. Everything else —
-finding `test/spec`, reading the file, the rest of the escape codec, the
-comparison, the `<file>:<line>` in a failure message — comes from
-[`@tabnas/support`](https://github.com/tabnas/support) and its Go half, so
-the two loaders cannot drift from each other either.
+All three are short, holding only what is specific to hoover: the
+mini-grammar it extends, how to build the parser for a row's options, the
+position matching for an `ERROR:` cell, and the `\uXXXX` escape.
+Everything else — finding `test/spec`, reading the file, the rest of the
+escape codec, the comparison, the `<file>:<line>` in a failure message —
+comes from [`@tabnas/support`](https://github.com/tabnas/support) and its
+Go and Rust halves, so the three loaders cannot drift from each other
+either.
 
 `\uXXXX` is the exception: the shared codec passes `\u` through on
 purpose, because a fixture has to be able to carry a literal one, so each
-runtime decodes that escape itself over the RAW cell. The two
-implementations are kept byte-identical and say so in a comment.
+runtime decodes that escape itself over the RAW cell. The three
+implementations are kept in step and say so in a comment.
 
-Both discover files by directory listing: adding a `.tsv` here runs it in
-both runtimes without touching either runner. An empty fixture, and a spec
+All three discover files by directory listing: adding a `.tsv` here runs
+it in every runtime without touching any runner. An empty fixture, and a spec
 directory with no fixtures in it, both **fail** — a runner that reports
 green having run nothing is indistinguishable from coverage that was never
 there.
@@ -66,5 +69,6 @@ there.
 - TypeScript is canonical. If the two runtimes disagree, the TS behaviour is
   the expected value — unless Go has exposed a genuine TS defect, in which
   case fix TS first and pin the corrected behaviour here.
-- A new fixture must pass in BOTH runtimes: run `go test ./...` (from `go/`)
-  and `npm test` (from `ts/`) before considering it done.
+- A new fixture must pass in ALL runtimes: run `go test ./...` (from
+  `go/`), `npm test` (from `ts/`) and `cargo test --all-targets` (from
+  `rs/`) before considering it done.

@@ -32,17 +32,19 @@ by name.
 |---|---|
 | [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@tabnas/hoover` npm package. A single plugin in [`ts/src/hoover.ts`](ts/src/hoover.ts). Imports the engine as `@tabnas/parser`; peer-depends on it (`">=2"`). |
 | [`go/`](go/) | Go port — module `github.com/tabnas/hoover/go` (`const VERSION` in `go/hoover.go`), a single [`go/hoover.go`](go/hoover.go). Depends only on `github.com/tabnas/parser/go` (imported as `tabnas`). |
+| [`rs/`](rs/) | Rust port, the `tabnas-hoover` crate (`pub const VERSION` in `rs/src/lib.rs`), a single [`rs/src/lib.rs`](rs/src/lib.rs). Depends on the `tabnas` crate via a `path` dependency (sibling checkout), plus `tabnas-support` as a dev-dependency for the fixture runner. See [`rs/AGENTS.md`](rs/AGENTS.md). |
+| [`ci/`](ci/) | Workflows and scripts **staged** for promotion into `.github/workflows/` by someone whose credentials can write there: `ci/workflows/rust.yml` (the Rust gate), `ci/workflows/docs.yml` (the prose gate), `ci/rust/run.sh` (what the Rust gate runs). |
 | [`ts/doc/hoover-ts.md`](ts/doc/hoover-ts.md), [`go/doc/hoover-go.md`](go/doc/hoover-go.md) | Per-runtime tutorial → how-to → reference → explanation docs. |
 
 There is no grammar package: hoover's only production dependency is the
 engine, and each runtime brings its own tiny local test grammar (`val` + a
 parenthesised `group`). The shared `.tsv` conformance fixtures run against
-that grammar — see [`test/AGENTS.md`](test/AGENTS.md). `ts/` and `go/` each
-have their own `AGENTS.md` with layout and contribution notes.
+that grammar — see [`test/AGENTS.md`](test/AGENTS.md). `ts/`, `go/` and
+`rs/` each have their own `AGENTS.md` with layout and contribution notes.
 
 ## The tabnas engine dependency
 
-Both runtimes depend on the unpublished engine as a **sibling
+All three runtimes depend on the unpublished engine as a **sibling
 checkout**, the standard tabnas dev model until `tabnas/parser` publishes
 tagged packages:
 
@@ -60,6 +62,15 @@ tagged packages:
 - Go: `go/go.mod` requires `github.com/tabnas/parser/go` with
   `replace github.com/tabnas/parser/go => ../../parser/go`. That is the
   module's **only** dependency.
+- Rust: `tabnas = { path = "../../parser/rs" }` in `rs/Cargo.toml` is the
+  crate's only production dependency; the tests also take
+  `tabnas-support = { path = "../../support/rs" }` (the shared fixture
+  runner) as a dev-dependency. Neither crate is published, so
+  `rs/Cargo.lock` records a resolution naming them and there is no
+  registry version to fall back on, which is why `ci/rust/run.sh` runs
+  cargo **without** `--locked` and checks the lockfile by diffing it
+  with those two entries' versions masked. Clone
+  `https://github.com/tabnas/support` beside the engine.
 
 Clone `https://github.com/tabnas/parser` as a sibling of this repo and
 build the engine's TS (`cd parser/ts && npm install && npm run build`),
@@ -70,23 +81,28 @@ CI below).
 
 1. **TypeScript is canonical, and you work on it first.** Make every
    behavior change in `ts/src/hoover.ts` first, then port it to
-   `go/hoover.go` in the same change. When TS and Go disagree, TS wins;
-   change Go to match. The engine (tabnas) is 1-based for row/column
-   tracking in both languages — keep hoover consistent with that (columns
-   reset to `1` after a newline).
-2. Neither runtime depends on a grammar package, so parity is kept by
-   running both ports against an **identical tiny local grammar**. The
+   `go/hoover.go` and `rs/src/lib.rs` in the same change. When TS and a
+   port disagree, TS wins; change the port to match. The engine (tabnas)
+   is 1-based for row/column tracking in every runtime — keep hoover
+   consistent with that (columns reset to `1` after a newline).
+2. No runtime depends on a grammar package, so parity is kept by
+   running every port against an **identical tiny local grammar**. The
    shared `test/spec/*.tsv` fixtures are the contract; the in-language
    suites keep the cases that a fixture cannot express:
-   [`ts/test/minigrammar.ts`](ts/test/minigrammar.ts) and
-   `go/minigrammar_test.go` define the same `val` + `group` grammar, and
+   [`ts/test/minigrammar.ts`](ts/test/minigrammar.ts),
+   `go/minigrammar_test.go` and `rs/tests/common/mini_grammar.rs` define
+   the same `val` + `group` grammar, and
    [`ts/test/hoover.test.ts`](ts/test/hoover.test.ts) / `go/hoover_test.go`
-   assert the same inputs and outputs. Add a case to both in the same
-   change.
+   / `rs/tests/hoover_test.rs` assert the same inputs and outputs. Add a
+   case to all three in the same change.
 3. The configuration shape is the same in both languages: `block` is an
    **ordered array** of block definitions, each with a `name`. Blocks
    are tried in array order, so order is significant and must be
-   preserved (the Go port must not iterate a map — it uses `[]*Block`).
+   preserved (the Go port must not iterate a map — it uses `[]*Block`;
+   Rust uses `Vec<Block>`). In Rust the options are a typed
+   `HooverOptions` struct rather than the engine's plugin-option bag,
+   because the `action` is a callback; the data shape the other runtimes
+   take is read by `HooverOptions::from_json` (behind the `serde_json` feature, off by default).
 4. Once a block's start matches, the block is **committed**: failing to
    reach an end delimiter (or hitting a rejected escape) is an error
    (a bad token: `invalid_text` for an unterminated block,
@@ -98,7 +114,7 @@ CI below).
    none). Register the dependency grammar first, then the hoover plugin.
    Hoover **fails fast** with a clear error if the `val` rule is absent
    (`tn.rule()` returns no `val`), rather than creating an empty one and
-   failing confusingly later. Keep this guard in both runtimes.
+   failing confusingly later. Keep this guard in every runtime.
 
 ## Repo-specific gotchas
 
@@ -111,7 +127,13 @@ CI below).
 - **`start.rule` gating** (the `matchStart` rule-context check) filters on
   `current`/`parent` include/exclude lists plus a `state` string. There is
   no default parent or current filter — an absent filter imposes no
-  constraint. `state` defaults to `'o'` (open); `state: ''` means *don't
+  constraint. The start rule's parent is the engine's sentinel rule (TS
+  `NORULE`), whose name is the empty string: only a `parent.include`
+  entry of `""` matches it and only a `parent.exclude` entry of `""`
+  rejects it. In Rust the start rule has no parent at all, and
+  `match_start` reads the missing parent as that empty name so the two
+  agree. Do not give it any other name, such as `"none"`: a user could
+  then list it. `state` defaults to `'o'` (open); `state: ''` means *don't
   check the state*. Because an absent condition is *no constraint* rather
   than a failed one, a rulespec that only sets `state: ''` still matches
   (both runtimes track this with a tri-state "unevaluated" marker — TS
@@ -119,7 +141,9 @@ CI below).
   In Go the zero value `State == ""` cannot mean "skip", since unset
   defaults to `"o"`; Go therefore exposes the dedicated `StateAny` (`"*"`)
   sentinel for it, and the data/JSON option shape maps `"state": ""` onto
-  `StateAny` so the shared fixtures behave identically in both runtimes.
+  `StateAny` so the shared fixtures behave identically in every runtime.
+  Rust needs no sentinel: `state` is `Option<String>`, `None` is the
+  `"o"` default and `Some("")` is "don't check".
 - **`consume`** on `start`/`end` is `null | boolean | string[]`: `null`
   (default) and `true` consume the delimiter, `false` leaves it in the
   stream, an array consumes only the listed delimiters. Mirrored in Go
@@ -131,17 +155,26 @@ CI below).
   newline, which is not the same test as "the emitted value is a
   newline": a mapped escape may replace it, and `preserveEscapeChar`
   emits the two-character sequence, which never equals `'\n'`. `parseToEnd`
-  tracks this with a per-iteration `nl` flag in both runtimes. Positions
-  surface in user-facing error messages, and `test/spec/escapes.tsv` pins
-  two of them with `ERROR:<row>:<col>` fixtures.
+  tracks this with a per-iteration `nl` flag in TS and Go; the Rust port
+  advances the engine's lexer cursor by the consumed source characters
+  instead, so the lexer's own row/column counters are authoritative.
+  Positions surface in user-facing error messages, and
+  `test/spec/escapes.tsv` pins two of them with `ERROR:<row>:<col>`
+  fixtures. One branch does not yet follow that rule in TS and Go: for a
+  *mapped* escape both test the replacement (`nl = '\n' === replacement`),
+  so `<a\nb> %` with `escape: {n: '\n'}` reports the stray `%` on row 2
+  there and on row 1 in Rust, whose engine has no way to count a row the
+  source does not contain. Recorded in [`DIVERGENCE.md`](DIVERGENCE.md);
+  the repair is in TS and Go, not in Rust.
 - **Where TS relies on `undefined`, Go needs an out-of-band sentinel.**
   `parseToEnd` builds `endchars` from the end delimiters; the `""`
   (end-of-input) delimiter maps to `undefined` in TS, which no source
   character equals. The Go mirror must not spell that as byte `0` — a
   literal NUL in the source then reads as end-of-input and silently
-  truncates the block. Same for "no `escapeChar` configured". Both use
+  truncates the block. Same for "no `escapeChar` configured". Go uses
   negative constants (`endOfInput`, `noEscapeChar`) so they are outside
-  the byte range by construction. Keep that property in any rework.
+  the byte range by construction; Rust uses `Option<char>` (`None`) for
+  both. Keep that property in any rework.
 - **`trim` is JavaScript `String.prototype.trim`, not `unicode.IsSpace`.**
   The trimmed set is ECMA-262 *WhiteSpace* ∪ *LineTerminator*, which
   differs from Go's Unicode `White_Space` in both directions: U+0085 NEL
@@ -150,13 +183,22 @@ CI below).
   that reason; do not "simplify" it to `strings.TrimSpace` /
   `unicode.IsSpace`. A leading BOM otherwise survives into a hoovered
   value — visible downstream as a BOM-prefixed first key in
-  `@tabnas/ini`. `test/spec/trim.tsv` pins both directions.
+  `@tabnas/ini`. `test/spec/trim.tsv` pins both directions. Rust's
+  `js_trim` enumerates the same set, for the same reason; do not
+  simplify it to `str::trim` / `char::is_whitespace`.
 - **Value resolution** happens in `parseToEnd`: if `cfg.value.lex` is on
   and the hoovered text is a registered value keyword
   (`cfg.value.def[val]`), the token value becomes that keyword's value.
   The bare Go engine ships no `value.def` keywords (`true`/`false`/`null`)
-  while the TS engine does, so the Go test grammar defines them — another
-  documented Go/TS gap.
+  while the TS and Rust engines do, so the Go test grammar defines them —
+  another documented Go/TS gap. The Rust mini grammar sets them too, so
+  the three grammars read alike.
+- **The Rust include-filter check is reproduced, not observed.** TS reads
+  the surviving `val` alts back after `tn.options()` re-runs the alt
+  filter; the Rust engine applies `rule.include`/`rule.exclude` when a
+  parse is prepared, so `rs/src/lib.rs` applies a copy of the engine's
+  predicate (`groups_enabled`) itself and refuses on the same condition.
+  See [`rs/AGENTS.md`](rs/AGENTS.md).
 
 ## Build & test
 
@@ -175,11 +217,25 @@ go build ./... && go vet ./...
 go test ./...        # drives the plugin through go/minigrammar_test.go
 ```
 
+Rust (from `rs/`):
+
+```bash
+cargo build --all-targets
+cargo test --all-targets   # drives the plugin through rs/tests/common/mini_grammar.rs
+cargo clippy --all-targets --all-features -- -D warnings
+```
+
+`--all-targets` does NOT run doctests; `ci/rust/run.sh` runs
+`cargo test --doc` as well, plus `cargo fmt --check` and the lockfile
+check, and is what the staged Rust workflow runs.
+
 The TS suite runs against **compiled output** — always `npm run build`
 after editing `ts/src/` or `ts/test/*.ts`.
 
-Both the repo-root [`Makefile`](Makefile) and [`ts/Makefile`](ts/Makefile)
-wrap both halves: `make build|test|clean` run the TS and Go sides, and
+The repo-root [`Makefile`](Makefile) wraps all three: `make
+build|test|clean` run the TS, Go and Rust sides (`make test-rs` is tests
+plus clippy, `make version-rs V=x.y.z` rewrites the two Rust version
+sites), [`ts/Makefile`](ts/Makefile) wraps the TS and Go halves, and
 `make publish-go V=x.y.z` seds `V` into the `const VERSION` in
 `go/hoover.go`, commits, tags `go/vX.Y.Z`, and (when `gh` is present)
 creates a GitHub release. `make tags-go` lists the Go tags. Local Go
@@ -200,6 +256,8 @@ Narrower, when iterating:
 ```bash
 (cd ts && npm test)                    # `pretest` builds first, then runs dist-test/
 (cd go && go test ./...)               # unit tests + the shared spec fixtures
+(cd rs && cargo test --all-targets)    # the same, for the Rust crate
+ci/rust/run.sh                         # what the Rust gate runs: fmt, build, tests, doctests, clippy, lockfile
 ```
 
 Each line is a subshell. `npm test` compiles first — its `pretest` runs
@@ -220,18 +278,21 @@ defect read as an accepted condition. The wiring is fixed instead, and
 
 What "correct" means here, in order of authority:
 
-1. **The shared fixtures pass in BOTH runtimes.** `test/spec/*.tsv` is the
-   parity contract, auto-discovered by `ts/test/parity.test.ts` and
-   `go/parity_test.go` — a row green in one runtime and red in the other
-   is a failure, not a discrepancy.
+1. **The shared fixtures pass in EVERY runtime.** `test/spec/*.tsv` is the
+   parity contract, auto-discovered by `ts/test/parity.test.ts`,
+   `go/parity_test.go` and `rs/tests/parity_test.rs` — a row green in one
+   runtime and red in another is a failure, not a discrepancy.
 2. **The mirrored unit suites cover the same ground.**
-   `ts/test/hoover.test.ts` and `go/hoover_test.go` run against the
-   identical mini grammar (`ts/test/minigrammar.ts`,
-   `go/minigrammar_test.go`); add a case to both in the same change.
-3. **The two version constants agree** — `ts/package.json` `"version"`,
-   `VERSION` in `ts/src/hoover.ts`, and `const VERSION` in `go/hoover.go`.
-   `ts/test/version.test.ts` and `go/version_test.go` fail — never skip —
-   if they drift.
+   `ts/test/hoover.test.ts`, `go/hoover_test.go` and
+   `rs/tests/hoover_test.rs` run against the identical mini grammar
+   (`ts/test/minigrammar.ts`, `go/minigrammar_test.go`,
+   `rs/tests/common/mini_grammar.rs`); add a case to all three in the
+   same change.
+3. **The version constants agree** — `ts/package.json` `"version"`,
+   `VERSION` in `ts/src/hoover.ts`, `const VERSION` in `go/hoover.go`,
+   `pub const VERSION` in `rs/src/lib.rs` and `version` in
+   `rs/Cargo.toml`. `ts/test/version.test.ts`, `go/version_test.go` and
+   `rs/tests/version_test.rs` fail — never skip — if they drift.
 
 ## Releasing
 
@@ -256,9 +317,14 @@ accepts the publish. Pushing a tag by hand is the orchestrator's path
 
 The steps, in order:
 
-1. Bump all **three** version sites together — `ts/package.json`, `VERSION`
-   in `ts/src/hoover.ts` and `const VERSION` in `go/hoover.go`. Drift is
-   caught by `ts/test/version.test.ts` and `go/version_test.go`.
+1. Bump all **five** version sites together — `ts/package.json`, `VERSION`
+   in `ts/src/hoover.ts`, `const VERSION` in `go/hoover.go`,
+   `pub const VERSION` in `rs/src/lib.rs` and `version` in `rs/Cargo.toml`
+   (`make version-rs V=x.y.z` does the two Rust sites and refreshes
+   `rs/Cargo.lock`). Drift is caught by `ts/test/version.test.ts`,
+   `go/version_test.go` and `rs/tests/version_test.rs`. The Rust crate is
+   not published (it depends on the engine by path), so bumping it is
+   about the invariant, not a release.
 2. Verify against the **published** dependencies rather than your checkout.
    The release runner installs fresh from the registry; a working tree
    usually does not, so reproduce that before believing anything:
@@ -502,22 +568,29 @@ string exactly the kind of value instruction-like text hides in.
   blocks containing `// =>` assertions from this repo's READMEs and docs
   and runs them. Keep doc examples correct; mark illustrative blocks
   ` ```js ignore ` to opt them out.
-- [`ts/test/parity.test.ts`](ts/test/parity.test.ts) and
-  `go/parity_test.go` — the shared `test/spec/*.tsv` conformance
-  fixtures, auto-discovered by directory listing in both runtimes. See
+- [`ts/test/parity.test.ts`](ts/test/parity.test.ts),
+  `go/parity_test.go` and `rs/tests/parity_test.rs` — the shared
+  `test/spec/*.tsv` conformance fixtures, auto-discovered by directory
+  listing in every runtime. See
   [`test/AGENTS.md`](test/AGENTS.md). This is the mechanism that keeps
   the two ports from drifting; prefer a fixture over an in-language
   assertion whenever a case is expressible as input → output.
-- `ts/test/perf.test.ts` and `go/perf_test.go` — a ratio check that
-  reusing one configured instance is far cheaper than rebuilding the
-  plugin per parse. Relative, not an absolute timing budget.
-- [`ts/test/version.test.ts`](ts/test/version.test.ts) and
-  `go/version_test.go` — the baked-in `VERSION` (exported from
-  `ts/src/hoover.ts`, `const VERSION` in `go/hoover.go`) must equal
+- `ts/test/perf.test.ts`, `go/perf_test.go` and `rs/tests/perf_test.rs`
+  — a ratio check that reusing one configured instance is far cheaper
+  than rebuilding the plugin per parse. Relative, not an absolute timing
+  budget.
+- [`ts/test/version.test.ts`](ts/test/version.test.ts),
+  `go/version_test.go` and `rs/tests/version_test.rs` — the baked-in
+  `VERSION` (exported from `ts/src/hoover.ts`, `const VERSION` in
+  `go/hoover.go`, `pub const VERSION` in `rs/src/lib.rs`) must equal
   `ts/package.json` "version". This is the drift guard: a release that
   bumps `package.json` and forgets a constant goes red here instead of
-  shipping a lie. Both fail — never skip — if `package.json` cannot be
-  read.
+  shipping a lie. All fail — never skip — if `package.json` cannot be
+  read; the Rust one also checks `rs/Cargo.toml`.
+- `rs/tests/hoover_test.rs` also pins what only Rust can express: the
+  typed-options surface, `HooverOptions::from_json`, the token's `use`
+  bag, the include-filter refusal, and that one instance serves
+  concurrent callers.
 
 ## CI
 
@@ -541,6 +614,13 @@ older in-repo `build.yml`; there is also a
 Whether the Go suite runs is the shared workflow's business, not this
 repo's; run it locally regardless (`make test-go` / `cd go && go test
 ./...`).
+
+The Rust gate is **staged, not wired**: `ci/workflows/rust.yml` runs
+`ci/rust/run.sh` (fmt check, build, tests, doctests, clippy, the lockfile
+check, the MSRV pin) after cloning the `parser` and `support` siblings.
+It lives under `ci/` because session credentials cannot write
+`.github/workflows/*` (see [`ci/README.md`](ci/README.md)); a maintainer
+promotes it. Run `ci/rust/run.sh` locally regardless.
 
 ## Agent tooling
 
