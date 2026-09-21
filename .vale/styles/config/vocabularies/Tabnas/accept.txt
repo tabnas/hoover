@@ -10,12 +10,15 @@
 
 [Bb]oolean
 [Cc]onst
+[Ee]num
 [Ff]unc
 [Hh]oover
 [Ll]exing
+[Ll]ockfile
 [Mm]atchers
 [Nn]pm
 [Pp]repends
+[Rr]untimes
 [Ss]ubstring
 [Tt]abnas
 [Tt]okenization
