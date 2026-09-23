@@ -1,6 +1,6 @@
 # libtabnashoover — the hoover parser as a C ABI
 
-<!-- tabnas-clib-template: v3 — stamped by admin tasks/adopt-clib.sh;
+<!-- tabnas-clib-template: v4 — stamped by admin tasks/adopt-clib.sh;
      edit the template and re-stamp, not this file. -->
 
 The hoover format parser as a C shared library, so languages with no
@@ -20,7 +20,7 @@ ZIG=/path/to/zig ./build.sh all
 
 | Function | Returns |
 |---|---|
-| `tabnas_version()` | `{"ok":true,"lib":"libtabnashoover","format":"hoover","template":"v3"}` |
+| `tabnas_version()` | `{"ok":true,"lib":"libtabnashoover","format":"hoover","template":"v4"}` |
 | `tabnas_grammar(opts, len)` | `{"ok":true,"handle":N}` — opts reserved, pass `(NULL, 0)`, unless the format notes below define them |
 | `tabnas_parse(handle, src, len)` | `{"ok":true,"accept":true[,"value":…]}` or `{"ok":true,"accept":false,"error":{…}}` |
 | `tabnas_grammar_free(handle)` | — |
@@ -66,7 +66,7 @@ const c = @cImport(@cInclude("tabnas.h"));
 
 ## Format notes
 
-hoover is a syntax plugin, not a format: it has no grammar of its own and extends a host grammar's `val` rule, so this library fixes one configuration - the jsonic (relaxed JSON) grammar plus hoover's canonical `'''...'''` block, which captures everything between the delimiters verbatim: spaces, newlines, and characters jsonic would otherwise lex as structure (`,` `:` `{}`) or comments (`#`, `//`). The block has no escapes and no trim, and is gated on no rule state (`StateAny`, TS `state: ''`): under hoover's default open-state gate a block that follows a comma is lexed while the enclosing rule is closing, hoover declines, and jsonic splits `'''b'''` into three single-quoted strings - `['''a''', '''b''']` would silently parse to `["a","","b",""]`. A `'''` opener commits the block: one never closed is rejected (`invalid_text`) rather than falling back to jsonic's single-quote strings, so `'''x', 'y'` is refused here although plain jsonic accepts it. Triple-quoted text is a value only - it cannot be a map key. Other block shapes (the end-of-line capture ini uses, escapes, trim, rule-context gating) need a native runtime until the reserved options argument is defined.
+The library runs on the engine, not on another grammar: `tabnas_grammar`'s argument is DEFINED, as in libtabnasparser, and is a serialized GrammarSpec (the JSON `Tabnas.grammarSpec()` / `GrammarSpecFromJSON` exchange), which is installed first; hoover is then installed on it with one fixed configuration, its canonical `'''...'''` block. hoover is a syntax plugin, not a format: it has no grammar of its own and extends the spec's `val` rule. The block captures everything between the delimiters verbatim: spaces, newlines, and characters the grammar would otherwise lex as structure or comments. It has no escapes and no trim, and is gated on no rule state (`StateAny`, TS `state: ''`), so a block is recognised wherever a value may start. A `'''` opener commits the block, and one never closed is rejected (`invalid_text`). Triple-quoted text is a value only; it cannot be a map key. Other block shapes (end-of-line capture, escapes, trim, rule-context gating) have no slot in the ABI.
 
 ## Layout
 

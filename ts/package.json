@@ -1,7 +1,7 @@
 {
   "name": "@tabnas/hoover",
-  "version": "0.3.8",
-  "description": "This plugin allows the [Tabnas](https://github.com/tabnas/jsonic) JSON parser to support string hoovering (unquoted internal spaces).",
+  "version": "0.3.9",
+  "description": "A plugin for the Tabnas parser engine (https://github.com/tabnas/parser) that adds string hoovering: unquoted values with internal spaces.",
   "main": "dist/hoover.js",
   "type": "commonjs",
   "types": "dist/hoover.d.ts",
@@ -25,7 +25,7 @@
     "pretest-some": "npm run build",
     "test-some": "node --enable-source-maps --test-name-pattern=\"$npm_config_pattern\" --test \"dist-test/*.test.js\"",
     "watch": "tsc --build src test -w",
-    "build": "tsc --build src test",
+    "build": "tsc --build src && tsc --build test",
     "clean": "rm -rf dist dist-test node_modules yarn.lock package-lock.json",
     "reset": "npm run clean && npm i && npm run build && npm test",
     "repo-tag": "REPO_VERSION=`node -e \"console.log(require('./package').version)\"` && echo TAG: ts/v$REPO_VERSION && git commit -a -m v$REPO_VERSION && git push && git tag ts/v$REPO_VERSION && git push origin ts/v$REPO_VERSION;",
@@ -47,8 +47,8 @@
     "@tabnas/parser": "*",
     "@tabnas/railroad": "*",
     "@tabnas/support": "*",
-    "@types/node": "25.6.0",
-    "typescript": "6.0.3"
+    "@types/node": "26.6.2",
+    "typescript": "7.0.2"
   },
   "peerDependencies": {
     "@tabnas/parser": ">=0"

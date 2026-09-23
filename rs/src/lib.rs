@@ -60,7 +60,7 @@ mod readme_examples {}
 /// orchestrator rewrites all of them, and `tests/version_test.rs` fails
 /// the build if they drift. Mirrors `VERSION` in `ts/src/hoover.ts` and
 /// `const VERSION` in `go/hoover.go`.
-pub const VERSION: &str = "0.3.8";
+pub const VERSION: &str = "0.3.9";
 
 /// The default matcher order: before the string (`5e6`) and number
 /// (`7e6`) matchers. Mirrors `Hoover.defaults.lex.order` in TypeScript
