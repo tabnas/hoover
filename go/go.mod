@@ -4,4 +4,9 @@ go 1.24.7
 
 require github.com/tabnas/parser/go v0.12.0
 
-require github.com/tabnas/support/go v0.3.4
+require (
+	github.com/tabnas/jsonic/go v0.7.0
+	github.com/tabnas/support/go v0.3.4
+)
+
+require github.com/tabnas/json/go v0.5.7 // indirect
