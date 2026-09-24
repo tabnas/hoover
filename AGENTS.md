@@ -94,7 +94,7 @@ by name.
 | [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@tabnas/hoover` npm package. A single plugin in [`ts/src/hoover.ts`](ts/src/hoover.ts). Imports the engine as `@tabnas/parser`; peer-depends on it (`">=0"`). |
 | [`go/`](go/) | Go port — module `github.com/tabnas/hoover/go` (`const VERSION` in `go/hoover.go`), a single [`go/hoover.go`](go/hoover.go). Depends only on `github.com/tabnas/parser/go` (imported as `tabnas`). |
 | [`rs/`](rs/) | Rust port, the `tabnas-hoover` crate (`pub const VERSION` in `rs/src/lib.rs`), a single [`rs/src/lib.rs`](rs/src/lib.rs). Depends on the `tabnas` crate via a `path` dependency (sibling checkout), plus `tabnas-support` as a dev-dependency for the fixture runner. See [`rs/AGENTS.md`](rs/AGENTS.md). |
-| [`ci/`](ci/) | `ci/rust/run.sh`, what the Rust gate (`.github/workflows/rust.yml`) runs, and the staging area for workflow changes (see [`ci/README.md`](ci/README.md)). The prose gate runs from `.github/workflows/docs.yml`. |
+| [`ci/`](ci/) | `ci/rust/run.sh`, what the Rust gate (`.github/workflows/rust.yml`) runs (see [`ci/README.md`](ci/README.md)). The prose gate runs from `.github/workflows/docs.yml`. |
 | [`ts/doc/`](ts/doc/), [`go/doc/`](go/doc/) | Per-runtime docs, each with `tutorial.md`, `guide.md`, `reference.md` and `concepts.md`. |
 
 There is no grammar package: hoover's only production dependency is the
@@ -675,9 +675,15 @@ Everything else (OS matrix, Node version, the `core.autocrlf false`
 setting that keeps LF fixtures intact across the tabnas repos, the
 build/test steps) lives in the shared workflow, not here. It replaced an
 older in-repo `build.yml`; there is also a
-[`release.yml`](.github/workflows/release.yml). Note that the
-`.github/workflows/*` files are promoted by a maintainer via the
-`tabnas/admin` rollout script — session credentials cannot write them.
+[`release.yml`](.github/workflows/release.yml). Change the
+`.github/workflows/*` files here, in a reviewed pull request: session
+credentials can push them (admin `DECISIONS.md` ADR-8, as amended
+2026-09-24). They still cannot push tags, so a release goes through
+`workflow_dispatch` (see "Releasing"). A workflow with a template in
+admin `rollout/workflows/` changes in that template too (ADR-8 as
+amended), and the stamped `clib.yml` and `clib-release.yml` change only
+through admin `tasks/clib-template/` and a re-stamp;
+[`ci/README.md`](ci/README.md) names which is which.
 
 Whether the Go suite runs is the shared workflow's business, not this
 repo's; run it locally regardless (`make test-go` / `cd go && go test
@@ -686,9 +692,9 @@ repo's; run it locally regardless (`make test-go` / `cd go && go test
 The Rust gate, `.github/workflows/rust.yml`, runs `ci/rust/run.sh`
 (fmt check, build, tests, doctests, clippy, the lockfile check, the MSRV
 pin) after cloning the `parser` and `support` siblings. It was staged
-under `ci/`, because session credentials cannot write
-`.github/workflows/*` (see [`ci/README.md`](ci/README.md)), and a
-maintainer has promoted it. Run `ci/rust/run.sh` locally regardless.
+under `ci/`, when session credentials could not write
+`.github/workflows/*`, and a maintainer has promoted it (see
+[`ci/README.md`](ci/README.md)). Run `ci/rust/run.sh` locally regardless.
 
 ## Agent tooling
 
