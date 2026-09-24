@@ -94,7 +94,7 @@ by name.
 | [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@tabnas/hoover` npm package. A single plugin in [`ts/src/hoover.ts`](ts/src/hoover.ts). Imports the engine as `@tabnas/parser`; peer-depends on it (`">=2"`). |
 | [`go/`](go/) | Go port — module `github.com/tabnas/hoover/go` (`const VERSION` in `go/hoover.go`), a single [`go/hoover.go`](go/hoover.go). Depends only on `github.com/tabnas/parser/go` (imported as `tabnas`). |
 | [`rs/`](rs/) | Rust port, the `tabnas-hoover` crate (`pub const VERSION` in `rs/src/lib.rs`), a single [`rs/src/lib.rs`](rs/src/lib.rs). Depends on the `tabnas` crate via a `path` dependency (sibling checkout), plus `tabnas-support` as a dev-dependency for the fixture runner. See [`rs/AGENTS.md`](rs/AGENTS.md). |
-| [`ci/`](ci/) | Workflows and scripts **staged** for promotion into `.github/workflows/` by someone whose credentials can write there: `ci/workflows/rust.yml` (the Rust gate), `ci/workflows/docs.yml` (the prose gate), `ci/rust/run.sh` (what the Rust gate runs). |
+| [`ci/`](ci/) | `ci/rust/run.sh`, what the Rust gate (`.github/workflows/rust.yml`) runs, and the staging area for workflow changes (see [`ci/README.md`](ci/README.md)). The prose gate runs from `.github/workflows/docs.yml`. |
 | [`ts/doc/hoover-ts.md`](ts/doc/hoover-ts.md), [`go/doc/hoover-go.md`](go/doc/hoover-go.md) | Per-runtime tutorial → how-to → reference → explanation docs. |
 
 There is no grammar package: hoover's only production dependency is the
@@ -288,7 +288,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 
 `--all-targets` does NOT run doctests; `ci/rust/run.sh` runs
 `cargo test --doc` as well, plus `cargo fmt --check` and the lockfile
-check, and is what the staged Rust workflow runs.
+check, and is what the Rust workflow runs.
 
 The TS suite runs against **compiled output** — always `npm run build`
 after editing `ts/src/` or `ts/test/*.ts`.
@@ -687,12 +687,12 @@ Whether the Go suite runs is the shared workflow's business, not this
 repo's; run it locally regardless (`make test-go` / `cd go && go test
 ./...`).
 
-The Rust gate is **staged, not wired**: `ci/workflows/rust.yml` runs
-`ci/rust/run.sh` (fmt check, build, tests, doctests, clippy, the lockfile
-check, the MSRV pin) after cloning the `parser` and `support` siblings.
-It lives under `ci/` because session credentials cannot write
-`.github/workflows/*` (see [`ci/README.md`](ci/README.md)); a maintainer
-promotes it. Run `ci/rust/run.sh` locally regardless.
+The Rust gate, `.github/workflows/rust.yml`, runs `ci/rust/run.sh`
+(fmt check, build, tests, doctests, clippy, the lockfile check, the MSRV
+pin) after cloning the `parser` and `support` siblings. It was staged
+under `ci/`, because session credentials cannot write
+`.github/workflows/*` (see [`ci/README.md`](ci/README.md)), and a
+maintainer has promoted it. Run `ci/rust/run.sh` locally regardless.
 
 ## Agent tooling
 
