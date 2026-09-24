@@ -11,7 +11,13 @@ This directory exists because session credentials cannot write
 
 ## Pending
 
-- **`workflows/rust.yml`**, the Rust gate. It checks this repository out
+Nothing.
+
+## Promoted
+
+Both of these were staged here and now run from `.github/workflows/`:
+
+- **`rust.yml`**, the Rust gate. It checks this repository out
   into a named directory, clones the `parser` and `support` siblings
   beside it (both are unpublished path dependencies of `rs/Cargo.toml`),
   installs the MSRV toolchain pinned in `rs/Cargo.toml`, and runs
@@ -22,13 +28,7 @@ This directory exists because session credentials cannot write
   things; `ci/rust/run.sh` runs it here, and `make test-rs` is the fast
   inner loop.
 
-- **`workflows/docs.yml`** — the prose gate: Vale over the reader-facing
-  pages at the levels set in `.vale.ini`, on the file list
+- **`docs.yml`** — the prose gate: Vale over the reader-facing pages at
+  the levels set in `.vale.ini`, on the file list
   `ts/scripts/gated-docs.cjs` produces. See `docs/STYLE-GUIDE.md`.
-
-  It needs no sibling checkouts and no secrets, and pins its own Vale
-  version. Errors fail the job; warnings go to the run summary as a
-  report. `make prose` runs the identical check locally, and the test
-  suite already runs the other half of the gate
-  (`ts/test/docs.test.js`), so promoting this adds the spelling and
-  Google-convention arm rather than the whole gate.
+  `make prose` runs the same check locally.

@@ -48,7 +48,7 @@ sweep, an install or a fetch, a release, a wait on CI, a benchmark, a
 script or loop you write, and anything sent to the background.
 
 - **Minimal is enough.** One line with the step and a count, such as
-  `conformance: 412/1500 (27%)`, meets it. When no total is known, print
+  `conformance: 412 of 1500 (27%)`, meets it. When no total is known, print
   what is known (the step, the current item, the elapsed time) and say the
   percentage is unknown rather than inventing one.
 - **Build it into what you write.** A script or loop prints a line per
@@ -91,11 +91,11 @@ by name.
 
 | Path | What it is |
 |---|---|
-| [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@tabnas/hoover` npm package. A single plugin in [`ts/src/hoover.ts`](ts/src/hoover.ts). Imports the engine as `@tabnas/parser`; peer-depends on it (`">=2"`). |
+| [`ts/`](ts/) | **Canonical** TypeScript/JavaScript implementation — the `@tabnas/hoover` npm package. A single plugin in [`ts/src/hoover.ts`](ts/src/hoover.ts). Imports the engine as `@tabnas/parser`; peer-depends on it (`">=0"`). |
 | [`go/`](go/) | Go port — module `github.com/tabnas/hoover/go` (`const VERSION` in `go/hoover.go`), a single [`go/hoover.go`](go/hoover.go). Depends only on `github.com/tabnas/parser/go` (imported as `tabnas`). |
 | [`rs/`](rs/) | Rust port, the `tabnas-hoover` crate (`pub const VERSION` in `rs/src/lib.rs`), a single [`rs/src/lib.rs`](rs/src/lib.rs). Depends on the `tabnas` crate via a `path` dependency (sibling checkout), plus `tabnas-support` as a dev-dependency for the fixture runner. See [`rs/AGENTS.md`](rs/AGENTS.md). |
-| [`ci/`](ci/) | Workflows and scripts **staged** for promotion into `.github/workflows/` by someone whose credentials can write there: `ci/workflows/rust.yml` (the Rust gate), `ci/workflows/docs.yml` (the prose gate), `ci/rust/run.sh` (what the Rust gate runs). |
-| [`ts/doc/hoover-ts.md`](ts/doc/hoover-ts.md), [`go/doc/hoover-go.md`](go/doc/hoover-go.md) | Per-runtime tutorial → how-to → reference → explanation docs. |
+| [`ci/`](ci/) | `ci/rust/run.sh`, what the Rust gate (`.github/workflows/rust.yml`) runs, and the staging area for workflow changes (see [`ci/README.md`](ci/README.md)). The prose gate runs from `.github/workflows/docs.yml`. |
+| [`ts/doc/`](ts/doc/), [`go/doc/`](go/doc/) | Per-runtime docs, each with `tutorial.md`, `guide.md`, `reference.md` and `concepts.md`. |
 
 There is no grammar package: hoover's only production dependency is the
 engine, and each runtime brings its own tiny local test grammar (`val` + a
@@ -105,24 +105,23 @@ that grammar — see [`test/AGENTS.md`](test/AGENTS.md). `ts/`, `go/` and
 
 ## The tabnas engine dependency
 
-All three runtimes depend on the unpublished engine as a **sibling
-checkout**, the standard tabnas dev model until `tabnas/parser` publishes
-tagged packages:
+The TypeScript and Go halves take the engine as a published package.
+The Rust half takes it as a **sibling checkout**, because the `tabnas`
+crate is not published:
 
 - TypeScript: `@tabnas/parser` is declared as a `peerDependency`
-  (`">=2"`) in `ts/package.json` and mirrored as a
-  `file:../../parser/ts` devDependency for local builds. `@tabnas/debug`
-  (`file:../../debug/ts`) and `@tabnas/railroad` (`file:../../railroad/ts`)
-  are also listed as dev-only `file:` devDependencies, but — unlike the
-  grammar repos — this repo currently has **no** `debug-model` test and
-  **no** generated railroad diagram, so nothing imports them. Treat them
-  as latent: don't claim a `debug.model()` test or a `grammar.svg`
-  exists here. All three are symlinked under `ts/node_modules/@tabnas`
-  (`parser`, `debug`, `railroad`) because they are declared, but `parser`
-  is the only one any source or test file imports.
-- Go: `go/go.mod` requires `github.com/tabnas/parser/go` with
-  `replace github.com/tabnas/parser/go => ../../parser/go`. That is the
-  module's **only** dependency.
+  (`">=0"`) in `ts/package.json` and as a `"*"` devDependency for local
+  builds, both resolved from the registry. `@tabnas/debug` and
+  `@tabnas/railroad` are also listed as dev-only `"*"` devDependencies,
+  but — unlike the grammar repos — this repo currently has **no**
+  `debug-model` test and **no** generated railroad diagram, so nothing
+  imports them. Treat them as latent: don't claim a `debug.model()` test
+  or a `grammar.svg` exists here. The fourth, `@tabnas/support`, is the
+  shared fixture runner `ts/test/parity.test.ts` imports; `parser` and
+  `support` are the only ones any source or test file imports.
+- Go: `go/go.mod` requires the published `github.com/tabnas/parser/go`,
+  with no `replace`, and `github.com/tabnas/support/go`, the shared
+  fixture runner the tests use.
 - Rust: `tabnas = { path = "../../parser/rs" }` in `rs/Cargo.toml` is the
   crate's only production dependency; the tests also take
   `tabnas-support = { path = "../../support/rs" }` (the shared fixture
@@ -133,10 +132,8 @@ tagged packages:
   with those two entries' versions masked. Clone
   `https://github.com/tabnas/support` beside the engine.
 
-Clone `https://github.com/tabnas/parser` as a sibling of this repo and
-build the engine's TS (`cd parser/ts && npm install && npm run build`),
-then work here. CI clones it (and the rest of the closure) for you (see
-CI below).
+For the Rust half, clone `https://github.com/tabnas/parser` as a sibling
+of this repo. CI clones both siblings for you (see CI below).
 
 ## Authority and alignment rules
 
@@ -266,7 +263,7 @@ CI below).
 TypeScript (from `ts/`):
 
 ```bash
-npm install          # auto-installs the @tabnas/parser peer; resolves file: siblings
+npm install          # resolves the @tabnas devDependencies from the registry
 npm run build        # tsc --build src test  → dist/ and dist-test/
 npm test             # node --test over dist-test/*.test.js
 ```
@@ -288,7 +285,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 
 `--all-targets` does NOT run doctests; `ci/rust/run.sh` runs
 `cargo test --doc` as well, plus `cargo fmt --check` and the lockfile
-check, and is what the staged Rust workflow runs.
+check, and is what the Rust workflow runs.
 
 The TS suite runs against **compiled output** — always `npm run build`
 after editing `ts/src/` or `ts/test/*.ts`.
@@ -300,8 +297,8 @@ sites), [`ts/Makefile`](ts/Makefile) wraps the TS and Go halves, and
 `make publish-go V=x.y.z` seds `V` into the `const VERSION` in
 `go/hoover.go`, commits, tags `go/vX.Y.Z`, and (when `gh` is present)
 creates a GitHub release. `make tags-go` lists the Go tags. Local Go
-builds resolve the unpublished engine via the `replace` in `go/go.mod`
-(a sibling checkout); there is no checked-in `go.work`.
+builds resolve the published engine version `go/go.mod` requires; there
+is no `replace` and no checked-in `go.work`.
 
 ## Verify your work
 
@@ -671,9 +668,8 @@ string exactly the kind of value instruction-like text hides in.
 `tabnas/.github/.github/workflows/polyglot-ci.yml@main`. It passes only
 two inputs:
 
-- `deps: "parser debug json abnf railroad"` — the sibling repos cloned
-  for the build,
-- `build-order: "parser debug json hoover abnf railroad"` — topo order.
+- `deps: "parser support"` — the sibling repos cloned for the build,
+- `build-order: "parser support hoover"` — topo order.
 
 Everything else (OS matrix, Node version, the `core.autocrlf false`
 setting that keeps LF fixtures intact across the tabnas repos, the
@@ -687,12 +683,12 @@ Whether the Go suite runs is the shared workflow's business, not this
 repo's; run it locally regardless (`make test-go` / `cd go && go test
 ./...`).
 
-The Rust gate is **staged, not wired**: `ci/workflows/rust.yml` runs
-`ci/rust/run.sh` (fmt check, build, tests, doctests, clippy, the lockfile
-check, the MSRV pin) after cloning the `parser` and `support` siblings.
-It lives under `ci/` because session credentials cannot write
-`.github/workflows/*` (see [`ci/README.md`](ci/README.md)); a maintainer
-promotes it. Run `ci/rust/run.sh` locally regardless.
+The Rust gate, `.github/workflows/rust.yml`, runs `ci/rust/run.sh`
+(fmt check, build, tests, doctests, clippy, the lockfile check, the MSRV
+pin) after cloning the `parser` and `support` siblings. It was staged
+under `ci/`, because session credentials cannot write
+`.github/workflows/*` (see [`ci/README.md`](ci/README.md)), and a
+maintainer has promoted it. Run `ci/rust/run.sh` locally regardless.
 
 ## Agent tooling
 

@@ -99,7 +99,7 @@ engine's built-in matchers sit at fixed priorities, and hoover's
 | 7e6 | Numbers |
 | 8e6 | Text |
 
-The default `4.5e6` places hoover **before** the string, number and text
+The default `4.5e6` places hoover **before** the string, number, and text
 matchers. That ordering is deliberate: a triple-quote block (`'''...'''`)
 must be tried before the ordinary single/double-quote string matcher, or
 the string matcher would claim the first quote. Likewise an end-of-line
