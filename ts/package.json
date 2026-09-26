@@ -1,6 +1,6 @@
 {
   "name": "@tabnas/hoover",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "A plugin for the Tabnas parser engine (https://github.com/tabnas/parser) that adds string hoovering: unquoted values with internal spaces.",
   "main": "dist/hoover.js",
   "type": "commonjs",
