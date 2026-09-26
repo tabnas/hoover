@@ -86,7 +86,26 @@ var _ = &sharedMu // referenced only by opt-in constructs
 // ignore it; a row that defines options must validate it here, since
 // nothing upstream does.
 func newParser(opts string) (parseFn, error) {
-	off := false; tn := host.Make(host.Options{Color: &host.ColorOptions{Active: &off}}); gs, err := host.GrammarSpecFromJSON([]byte(opts)); if err != nil { return nil, &host.TabnasError{Code: "grammar", Detail: "unreadable spec: " + err.Error()} }; if err := tn.Grammar(gs); err != nil { return nil, err }; start := tn.Config().RuleStart; if start == "" { start = "val" }; if tn.RSM()[start] == nil { return nil, &host.TabnasError{Code: "grammar", Detail: "spec installs no start rule " + start + ", so no input could be validated against it"} }; if err := tn.UseDefaults(plug.Hoover, plug.Defaults, map[string]any{"block": []*plug.Block{{Name: "triplequote", Start: plug.StartSpec{Fixed: []string{"'''"}, Rule: &plug.HooverRuleSpec{State: plug.StateAny}}, End: plug.EndSpec{Fixed: []string{"'''"}}}}}); err != nil { return nil, err }; return tn.Parse, nil
+	off := false
+	tn := host.Make(host.Options{Color: &host.ColorOptions{Active: &off}})
+	gs, err := host.GrammarSpecFromJSON([]byte(opts))
+	if err != nil {
+		return nil, &host.TabnasError{Code: "grammar", Detail: "unreadable spec: " + err.Error()}
+	}
+	if err := tn.Grammar(gs); err != nil {
+		return nil, err
+	}
+	start := tn.Config().RuleStart
+	if start == "" {
+		start = "val"
+	}
+	if tn.RSM()[start] == nil {
+		return nil, &host.TabnasError{Code: "grammar", Detail: "spec installs no start rule " + start + ", so no input could be validated against it"}
+	}
+	if err := tn.UseDefaults(plug.Hoover, plug.Defaults, map[string]any{"block": []*plug.Block{{Name: "triplequote", Start: plug.StartSpec{Fixed: []string{"'''"}, Rule: &plug.HooverRuleSpec{State: plug.StateAny}}, End: plug.EndSpec{Fixed: []string{"'''"}}}}}); err != nil {
+		return nil, err
+	}
+	return tn.Parse, nil
 }
 
 // reply marshals a result document. Marshalling cannot fail for the
