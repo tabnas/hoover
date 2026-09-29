@@ -20,7 +20,7 @@ path = "src/lib.rs"
 # development model: clone https://github.com/tabnas/parser next to this
 # repo. The `tabnas` crate is not published, so there is no registry
 # version to fall back on.
-tabnas = { path = "../../parser/rs" }
+tabnas = { package = "tabnas-parser", path = "../../parser/rs" }
 # Only for `HooverOptions::from_json`, the reader of the shared data
 # shape, and only when a consumer asks for it: the engine stays the sole
 # production dependency.

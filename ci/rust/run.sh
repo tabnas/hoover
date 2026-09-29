@@ -4,7 +4,7 @@
 # you. `make test-rs` is the fast inner loop; this is the full gate.
 #
 # The engine is a PATH DEPENDENCY on the sibling checkout
-# (rs/Cargo.toml: `tabnas = { path = "../../parser/rs" }`), and the crate
+# (rs/Cargo.toml: `tabnas = { package = "tabnas-parser", path = "../../parser/rs" }`), and the crate
 # is unpublished, so there is no registry version to fall back on. Clone
 # https://github.com/tabnas/parser next to this repo before running, and
 # https://github.com/tabnas/support beside it for the fixture runner.
@@ -91,7 +91,7 @@ fi
 lock_without_sibling_versions() {
   awk '
     /^\[\[package\]\]$/          { sib = 0 }
-    /^name = "tabnas"$/          { sib = 1 }
+    /^name = "tabnas-parser"$/          { sib = 1 }
     /^name = "tabnas-support"$/  { sib = 1 }
     sib && /^version = /         { print "version = \"<sibling>\""; next }
                                  { print }

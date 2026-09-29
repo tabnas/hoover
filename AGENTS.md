@@ -122,7 +122,7 @@ crate is not published:
 - Go: `go/go.mod` requires the published `github.com/tabnas/parser/go`,
   with no `replace`, and `github.com/tabnas/support/go`, the shared
   fixture runner the tests use.
-- Rust: `tabnas = { path = "../../parser/rs" }` in `rs/Cargo.toml` is the
+- Rust: `tabnas = { package = "tabnas-parser", path = "../../parser/rs" }` in `rs/Cargo.toml` is the
   crate's only production dependency; the tests also take
   `tabnas-support = { path = "../../support/rs" }` (the shared fixture
   runner) as a dev-dependency. Neither crate is published, so
