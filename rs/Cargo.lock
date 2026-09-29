@@ -150,23 +150,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "tabnas"
-version = "0.12.4"
+name = "tabnas-hoover"
+version = "0.3.10"
+dependencies = [
+ "serde_json",
+ "tabnas-hoover",
+ "tabnas-parser",
+ "tabnas-support",
+]
+
+[[package]]
+name = "tabnas-parser"
+version = "0.12.7"
 dependencies = [
  "indexmap",
  "regex",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "tabnas-hoover"
-version = "0.3.10"
-dependencies = [
- "serde_json",
- "tabnas",
- "tabnas-hoover",
- "tabnas-support",
 ]
 
 [[package]]

@@ -86,7 +86,7 @@ and point at it:
 
 ```toml
 [dependencies]
-tabnas = { path = "../parser/rs" }
+tabnas = { package = "tabnas-parser", path = "../parser/rs" }
 tabnas-hoover = { path = "../hoover/rs" }
 ```
 
