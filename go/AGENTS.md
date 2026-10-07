@@ -20,11 +20,12 @@ The TypeScript implementation (`../ts/src/hoover.ts`) is canonical for
 parse behavior. When porting or fixing, read the TS source first and
 mirror it.
 
-Both runtimes run the **same** shared `../test/spec/*.tsv` fixtures —
-`parity_test.go` globs them here, `../ts/test/parity.test.ts` reads the
-same directory there — and both drive them through an identical tiny
-local grammar (`val` + a parenthesised `group`), not JSON. Those fixtures
-are the parity contract: neither port can drift without one going red.
+All three runtimes run the **same** shared `../test/spec/*.tsv` fixtures —
+`parity_test.go` globs them here, `../ts/test/parity.test.ts` and
+`../rs/tests/parity_test.rs` read the same directory there — and all three
+drive them through an identical tiny local grammar (`val` + a parenthesised
+`group`), not JSON. Those fixtures are the parity contract: no port can
+drift without one going red.
 The in-language suites carry only the cases a fixture cannot express.
 Keep the Go behavior identical to TS for equivalent configs.
 
@@ -122,7 +123,7 @@ go test -coverpkg=./... -cover ./...
     from unset (which defaults to `"o"`). The `StateAny` (`"*"`) sentinel
     is the Go spelling of it, and `ruleSpecFromAny` maps a data-shape
     `"state": ""` onto `StateAny`, so the shared fixtures exercise the
-    same behavior in both runtimes. Only a Go **struct literal** needs
+    same behavior in every runtime. Only a Go **struct literal** needs
     `StateAny` written out. Note that a rulespec setting *only* the state
     skip — no parent/current filter — must still match: an absent
     condition is no constraint, not a failed one (hence the `matchRule

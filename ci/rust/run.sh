@@ -4,8 +4,9 @@
 # you. `make test-rs` is the fast inner loop; this is the full gate.
 #
 # The engine is a PATH DEPENDENCY on the sibling checkout
-# (rs/Cargo.toml: `tabnas = { package = "tabnas-parser", path = "../../parser/rs" }`), and the crate
-# is unpublished, so there is no registry version to fall back on. Clone
+# (rs/Cargo.toml: `tabnas = { package = "tabnas-parser", path = "../../parser/rs" }`). The engine is
+# on crates.io as tabnas-parser, but the committed manifest names it by
+# path alone, so there is no registry version to fall back on. Clone
 # https://github.com/tabnas/parser next to this repo before running, and
 # https://github.com/tabnas/support beside it for the fixture runner.
 set -euo pipefail
@@ -22,7 +23,7 @@ fi
 
 # The tests take the shared fixture runner as a path dev-dependency
 # (rs/Cargo.toml: `tabnas-support = { path = "../../support/rs" }`), and
-# that crate is unpublished too.
+# that crate is on crates.io too, but the dev-dependency is path-only.
 if [[ ! -f "$SUPPORT/Cargo.toml" ]]; then
   echo "no support checkout at $SUPPORT" >&2
   echo "clone https://github.com/tabnas/support as a sibling of $(basename "$ROOT")" >&2

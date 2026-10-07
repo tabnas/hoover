@@ -19,8 +19,9 @@ and this file only covers what is specific to this crate.
 Crate `tabnas-hoover`, library `tabnas_hoover`. The engine crate
 `tabnas` is a **path dependency on the sibling checkout**
 (`../../parser/rs`), and so is the `tabnas-support` dev-dependency
-(`../../support/rs`). Neither is published, so there is no registry
-version to fall back on. Clone both next to this repo.
+(`../../support/rs`). Both are on crates.io, but the committed manifest
+names them by path alone, so there is no registry version to fall back
+on. Clone both next to this repo.
 
 ```bash
 CARGO_TERM_COLOR=never cargo build --all-targets

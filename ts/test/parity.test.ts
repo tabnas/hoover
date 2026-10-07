@@ -5,8 +5,9 @@
 //
 // The fixture loader, the escape codec, the `ERROR:` contract and the row
 // loop all come from @tabnas/support, whose Go half `go/parity_test.go`
-// uses to run the SAME files — so the two implementations cannot drift
-// without one of them going red, and neither can the two loaders.
+// and Rust half `rs/tests/parity_test.rs` use to run the SAME files — so
+// the three implementations cannot drift without one of them going red,
+// and neither can the loaders.
 //
 // What is left here is only what is specific to hoover: the grammar it
 // extends, and what an `ERROR:` cell means.
@@ -64,7 +65,7 @@ makeRunner({
     const input = unescapeHoover(row.named('input'))
     // hoover has no grammar of its own: it extends whatever grammar
     // supplies the `val` rule. The tiny local mini-grammar plays that part
-    // in both runtimes.
+    // in every runtime.
     const opts = row.named('opts')
     return new Tabnas()
       .use(miniGrammar)
@@ -83,5 +84,5 @@ makeRunner({
   // `findSpecDir` walks up from this file — `dist-test/` at runtime — to the
   // repo root's `test/spec`, so moving the suite does not mean recounting
   // `..` hops. `dir` then auto-discovers every fixture in it, so adding a
-  // .tsv runs it in both runtimes without touching either runner.
+  // .tsv runs it in every runtime without touching any runner.
   .dir(findSpecDir(__dirname))

@@ -106,8 +106,9 @@ that grammar — see [`test/AGENTS.md`](test/AGENTS.md). `ts/`, `go/` and
 ## The tabnas engine dependency
 
 The TypeScript and Go halves take the engine as a published package.
-The Rust half takes it as a **sibling checkout**, because the `tabnas`
-crate is not published:
+The Rust half takes it as a **sibling checkout**, because `rs/Cargo.toml`
+names it by path: the engine is on crates.io as `tabnas-parser`, but the
+committed manifest stays path-only.
 
 - TypeScript: `@tabnas/parser` is declared as a `peerDependency`
   (`">=0"`) in `ts/package.json` and as a `"*"` devDependency for local
@@ -125,11 +126,15 @@ crate is not published:
 - Rust: `tabnas = { package = "tabnas-parser", path = "../../parser/rs" }` in `rs/Cargo.toml` is the
   crate's only production dependency; the tests also take
   `tabnas-support = { path = "../../support/rs" }` (the shared fixture
-  runner) as a dev-dependency. Neither crate is published, so
-  `rs/Cargo.lock` records a resolution naming them and there is no
-  registry version to fall back on, which is why `ci/rust/run.sh` runs
-  cargo **without** `--locked` and checks the lockfile by diffing it
-  with those two entries' versions masked. Clone
+  runner) as a dev-dependency. Both are on crates.io, as is this crate
+  (`tabnas-hoover`), but the committed manifest stays path-only:
+  `crates-release.yml` rewrites the engine's path into a crates.io
+  requirement, and drops the dev-dependency, only in the copy it
+  publishes. A path dependency resolves to whatever version the sibling
+  checkout holds, so `rs/Cargo.lock`'s entries for the two move whenever
+  their checkouts do. That is why `ci/rust/run.sh` runs cargo **without**
+  `--locked` and checks the lockfile by diffing it with those two
+  entries' versions masked. Clone
   `https://github.com/tabnas/support` beside the engine.
 
 For the Rust half, clone `https://github.com/tabnas/parser` as a sibling
@@ -153,7 +158,7 @@ of this repo. CI clones both siblings for you (see CI below).
    [`ts/test/hoover.test.ts`](ts/test/hoover.test.ts) / `go/hoover_test.go`
    / `rs/tests/hoover_test.rs` assert the same inputs and outputs. Add a
    case to all three in the same change.
-3. The configuration shape is the same in both languages: `block` is an
+3. The configuration shape is the same in every language: `block` is an
    **ordered array** of block definitions, each with a `name`. Blocks
    are tried in array order, so order is significant and must be
    preserved (the Go port must not iterate a map — it uses `[]*Block`;
@@ -293,7 +298,7 @@ after editing `ts/src/` or `ts/test/*.ts`.
 The repo-root [`Makefile`](Makefile) wraps all three: `make
 build|test|clean` run the TS, Go and Rust sides (`make test-rs` is tests
 plus clippy, `make version-rs V=x.y.z` rewrites the two Rust version
-sites), [`ts/Makefile`](ts/Makefile) wraps the TS and Go halves, and
+sites), [`ts/Makefile`](ts/Makefile) wraps all three from inside `ts/`, and
 `make publish-go V=x.y.z` seds `V` into the `const VERSION` in
 `go/hoover.go`, commits, tags `go/vX.Y.Z`, and (when `gh` is present)
 creates a GitHub release. `make tags-go` lists the Go tags. Local Go
@@ -306,7 +311,7 @@ The commands that prove a change is correct. Run them from the repo root
 unless stated:
 
 ```bash
-make build && make test      # both runtimes — the check that matters
+make build && make test      # all three runtimes — the check that matters
 ```
 
 Narrower, when iterating:
@@ -380,9 +385,10 @@ The steps, in order:
    `pub const VERSION` in `rs/src/lib.rs` and `version` in `rs/Cargo.toml`
    (`make version-rs V=x.y.z` does the two Rust sites and refreshes
    `rs/Cargo.lock`). Drift is caught by `ts/test/version.test.ts`,
-   `go/version_test.go` and `rs/tests/version_test.rs`. The Rust crate is
-   not published (it depends on the engine by path), so bumping it is
-   about the invariant, not a release.
+   `go/version_test.go` and `rs/tests/version_test.rs`. The Rust crate
+   ships with the release: `release.yml`'s `crates` job publishes `rs/` to
+   crates.io from the release tag, after `crates-release.yml` rewrites its
+   engine path into a crates.io requirement.
 2. Verify against the **published** dependencies rather than your checkout.
    The release runner installs fresh from the registry; a working tree
    usually does not, so reproduce that before believing anything:
@@ -403,12 +409,15 @@ The steps, in order:
    suite then passes against unreleased code while appearing to verify the
    published one. Reinstalling is the part that matters.
 
-   One thing a clean install does **not** isolate:
-   `ts/test/doc-examples.test.*` resolves `@tabnas/*` by filesystem path
-   (`const TABNAS = path.join(REPO, '..')`), not through `node_modules`. If
-   unbuilt sibling checkouts sit beside this repo, those blocks fail with
-   `MODULE_NOT_FOUND` no matter what you installed — build the siblings, or
-   verify somewhere they are absent.
+   A clean install covers the doc examples too.
+   `ts/test/doc-examples.test.*` resolves a doc example's `require` through
+   `node_modules` first; only a `@tabnas/*` package that is not installed
+   falls back to the sibling checkout `../<x>/ts`
+   (`const TABNAS = path.join(REPO, '..')`), and `@tabnas/hoover` itself to
+   this repository's `ts/`. The tested blocks require only `@tabnas/hoover`
+   and `@tabnas/parser`, which `ts/package.json` declares, so they run
+   against the registry copy, unless admin's `scripts/link.sh` has linked a
+   sibling over it, in which case that sibling has to be built.
 
    `npm test` already compiles here: `ts/package.json` sets `pretest` to
    `npm run build`, which npm runs automatically. No separate build step is
@@ -422,13 +431,17 @@ The steps, in order:
    ```bash
    (
      cd go
-     go mod edit -json | grep -q '"Replace": null' || { echo 'go.mod has a replace'; exit 1; }
+     go mod edit -json | jq -e '.Replace == null' >/dev/null || { echo 'go.mod has a replace'; exit 1; }
      GOWORK=off go test -count=1 ./...
    )
    ```
 
    `-count=1` because shared fixtures live outside the Go module, so a
-   changed corpus does not invalidate the test cache.
+   changed corpus does not invalidate the test cache. The check asks `jq`,
+   not `grep`: current Go leaves the `Replace` key out when there is no
+   replace, where older Go printed `"Replace": null`, and `jq` reads a
+   missing key as null, so the check passes on a clean `go.mod` and fails
+   on a replace either way.
 3. **Merge the bump through a reviewed PR.** That is the house convention —
    `CONTRIBUTING.md` squash-merges PRs and takes the title as the commit
    message — and what `release.yml`'s own header describes. A direct push to
@@ -588,7 +601,7 @@ They stay in the Makefile because removing them is a separate change.
 ## Error codes
 
 This plugin declares no error codes of its own — there is no `error`/`hint`
-catalogue in either runtime. The two codes it *raises* — `invalid_text` for
+catalogue in any runtime. The two codes it *raises* — `invalid_text` for
 a committed block that never reaches an end delimiter, `invalid_escape` for
 a rejected escape (rule 4 above) — are tagged onto bad tokens and rendered
 by the engine; nothing declares a message or hint for them.
@@ -602,7 +615,7 @@ defect from rejecting for the wrong reason), and `escapes.tsv` /
 `rule-context.tsv` also carry bare `ERROR` cells that accept any failure.
 Those rows are conversion targets for the org's A3/A4 error-code work —
 declare the two codes properly and pin `ERROR:<code>` alongside the
-positions — because a message can be reworded without either runtime
+positions — because a message can be reworded without any runtime
 noticing, where a code cannot.
 
 The machine-readable list is [`tabnas.plugin.json`](tabnas.plugin.json)
@@ -644,7 +657,7 @@ string exactly the kind of value instruction-like text hides in.
   `test/spec/*.tsv` conformance fixtures, auto-discovered by directory
   listing in every runtime. See
   [`test/AGENTS.md`](test/AGENTS.md). This is the mechanism that keeps
-  the two ports from drifting; prefer a fixture over an in-language
+  the ports from drifting; prefer a fixture over an in-language
   assertion whenever a case is expressible as input → output.
 - `ts/test/perf.test.ts`, `go/perf_test.go` and `rs/tests/perf_test.rs`
   — a ratio check that reusing one configured instance is far cheaper

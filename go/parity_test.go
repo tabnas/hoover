@@ -7,9 +7,9 @@ package tabnashoover
 //
 // The fixture loader, the escape codec, the ERROR: contract and the row
 // loop all come from github.com/tabnas/support/go, whose TypeScript half
-// ts/test/parity.test.ts uses to run the SAME files — so the two
-// implementations cannot drift without one of them going red, and neither
-// can the two loaders.
+// ts/test/parity.test.ts and Rust half rs/tests/parity_test.rs use to run
+// the SAME files — so the three implementations cannot drift without one
+// of them going red, and neither can the loaders.
 //
 // What is left here is only what is specific to hoover: the grammar it
 // extends, and what an ERROR: cell means.
@@ -26,7 +26,7 @@ import (
 
 // TestSpec runs every fixture in the spec directory. FindSpecDir walks up
 // from the package directory, and Dir discovers the files by listing, so
-// adding a .tsv runs it in both runtimes without touching either runner.
+// adding a .tsv runs it in every runtime without touching any runner.
 func TestSpec(t *testing.T) {
 	dir, err := support.FindSpecDir("")
 	if err != nil {
@@ -48,7 +48,7 @@ func TestSpec(t *testing.T) {
 
 			// hoover has no grammar of its own: it extends whatever
 			// grammar supplies the `val` rule. The tiny local mini-grammar
-			// plays that part in both runtimes.
+			// plays that part in every runtime.
 			j := tabnas.Make()
 			if err := j.Use(miniGrammar); err != nil {
 				return nil, err

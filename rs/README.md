@@ -79,20 +79,21 @@ that token is matched.
 
 ## Install
 
-The `tabnas` crate is not published to a registry, so the engine is
-consumed as a **sibling checkout**, the standard tabnas development
-model. Clone `https://github.com/tabnas/parser` next to this repository
-and point at it:
+The engine is not part of this crate. Both are on crates.io, the engine
+as `tabnas-parser`, whose library is named `tabnas` in code, so add both:
 
-```toml
-[dependencies]
-tabnas = { package = "tabnas-parser", path = "../parser/rs" }
-tabnas-hoover = { path = "../hoover/rs" }
+```bash
+cargo add tabnas-hoover tabnas-parser
 ```
 
 Both entries are needed. A crate's dependencies are not passed on to its
 dependents, so `tabnas-hoover` alone does not put `tabnas` in your
 extern prelude.
+
+In this repository, `Cargo.toml` takes the engine by path from a sibling
+checkout instead, and the tests take `tabnas-support` the same way. The
+release workflow swaps the engine's path for a crates.io version, and
+drops the test-only one, when it publishes this crate.
 
 ## Differences from the canonical TypeScript
 
