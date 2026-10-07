@@ -24,8 +24,9 @@ defining `val` must already be registered.
 - `test/hoover.test.ts` — behavior tests driving the plugin through that
   grammar.
 - `test/parity.test.ts` — the shared `../../test/spec/*.tsv` fixtures,
-  auto-discovered; `../go/parity_test.go` runs the same files, so the two
-  ports cannot drift without one going red. Prefer a fixture there over an
+  auto-discovered; `../go/parity_test.go` and `../rs/tests/parity_test.rs`
+  run the same files, so the ports cannot drift without one going red.
+  Prefer a fixture there over an
   assertion here whenever a case is expressible as input → output.
 - `test/doc-examples.test.ts` — runs the fenced `js` blocks carrying
   `// =>` assertions in this repo's READMEs and docs.
@@ -71,10 +72,11 @@ Tests run against compiled output in `dist-test/`, so always
 
 ## Rules of the road
 
-- Behavior here is the spec: make the change here first, then port to
-  the Go port (`../go/`) in the same change. Both ports test against an
-  identical tiny grammar with matching cases — add a case to
-  `test/hoover.test.ts` and `../go/hoover_test.go` together.
+- Behavior here is the spec: make the change here first, then port it to
+  the Go and Rust ports (`../go/`, `../rs/`) in the same change. All three
+  test against an identical tiny grammar with matching cases — add a case
+  to `test/hoover.test.ts`, `../go/hoover_test.go` and
+  `../rs/tests/hoover_test.rs` together.
 - Row/column tracking follows the tabnas engine convention: columns are
   1-based and reset to `1` (not `0`) after a newline.
 - The plugin/rule API is the engine's: `tn.token(name)` mints a token,

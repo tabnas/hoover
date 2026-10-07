@@ -31,7 +31,8 @@ Both of these were staged here and now run from `.github/workflows/`:
 
 - **`rust.yml`**, the Rust gate. It checks this repository out
   into a named directory, clones the `parser` and `support` siblings
-  beside it (both are unpublished path dependencies of `rs/Cargo.toml`),
+  beside it (both are path dependencies of `rs/Cargo.toml`: on crates.io,
+  but the committed manifest stays path-only),
   installs the MSRV toolchain pinned in `rs/Cargo.toml`, and runs
   `ci/rust/run.sh`: `cargo fmt --check`, a build of every target, the
   tests, the doctests, clippy at `-D warnings`, and a lockfile check that

@@ -1,7 +1,7 @@
 # Reference
 
 The complete public API of `@tabnas/hoover` (TypeScript / JavaScript).
-This is the canonical implementation; the Go port tracks it.
+This is the canonical implementation; the Go and Rust ports track it.
 
 ```ts
 import { Hoover, parseToEnd } from '@tabnas/hoover'

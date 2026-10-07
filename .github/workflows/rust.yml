@@ -52,14 +52,17 @@ jobs:
         with:
           path: hoover
 
-      # Engine main, not a release: the crate is unpublished, so this is
-      # the only resolution there is. It is also the one CI already uses
-      # for Go, so both ports are measured against the same engine.
+      # Engine main, not a release: rs/Cargo.toml names the engine by path
+      # (tabnas-parser is on crates.io, but the committed manifest stays
+      # path-only), so this is the only resolution there is. It is also
+      # the one CI already uses for Go, so both ports are measured against
+      # the same engine.
       - name: Clone the sibling engine
         run: git clone --depth 1 https://github.com/tabnas/parser.git parser
 
       # The fixture runner the tests use is a path dev-dependency on
-      # another unpublished sibling, for the same reason.
+      # another sibling (tabnas-support is on crates.io, but the
+      # dev-dependency is path-only), for the same reason.
       - name: Clone the sibling support crate
         run: git clone --depth 1 https://github.com/tabnas/support.git support
 
