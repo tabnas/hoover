@@ -9,3 +9,4 @@
 #![allow(dead_code)]
 
 pub mod mini_grammar;
+pub mod spec;

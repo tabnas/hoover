@@ -821,55 +821,88 @@ fn and_into(match_rule: &mut Option<bool>, value: bool) {
 
 /// The lex matcher: try each block in order; the first whose start
 /// matches is committed.
+///
+/// A block is read from the text the lexer holds: the whole source, or in
+/// a parse from a reader a window of it (`lex.window`, admin ADR-30), which
+/// [`Lexer::window`] gives from the cursor on. A start delimiter the window
+/// ends inside, or a scan that reaches the window's end, may not be what
+/// the whole text gives, so the block is read again over a window asked for
+/// twice what it holds ([`Lexer::fill`]), a long block costing its length
+/// to read and not its square. Where the window does not grow, the source
+/// ends there, and the end of the window is the end of the source. In a
+/// whole text `fill` only answers.
 fn hoover_matcher(
     lexer: &mut Lexer<'_>,
     rule: &mut Rule,
     blocks: &[Prepared],
     config: &MatcherConfig,
 ) -> Option<Token> {
-    for prepared in blocks {
+    let mut exhausted = !lexer.windowed();
+    'blocks: for prepared in blocks {
         let block = &prepared.block;
         let point = lexer.point();
-        let rest = lexer.remaining();
-
-        let Some(start) = match_start(rest, rule, block) else {
-            continue;
-        };
-
-        match parse_to_end(rest, start, block, config) {
-            Ok(Scanned { value, end }) => {
-                let source = &rest[..end];
-                let mut token =
-                    lexer.token(&prepared.token_name, prepared.tin, value, source, point);
-                token
-                    .use_data_mut()
-                    .insert("block".to_string(), Value::String(block.name.clone()));
-                let consumed = source.chars().count();
-                lexer.advance_chars(consumed);
-                return Some(token);
-            }
-            // A rejected escape: the bad token spans the escape character.
-            Err(Rejected::Escape { at }) => {
-                let position = point.site.pos + rest[..at].chars().count();
-                return Some(lexer.bad_span(INVALID_ESCAPE, position, position + 1));
-            }
-            // Once a start matches, the block is committed: never reaching
-            // an end delimiter is an error, not a fall-through. The span
-            // is the start delimiter, as in TypeScript.
-            Err(Rejected::Unterminated) => {
-                let position = point.site.pos;
-                let width = rest[..start].chars().count();
-                return Some(lexer.bad_span(INVALID_TEXT, position, position + width));
+        loop {
+            let rest = lexer.window();
+            let scanned = match match_start(rest, rule, block, exhausted) {
+                Start::No => continue 'blocks,
+                Start::Edge => Err(Rejected::Edge),
+                Start::At(start) => parse_to_end(rest, start, block, config, exhausted),
+            };
+            match scanned {
+                Ok(Scanned { value, end }) => {
+                    let source = &rest[..end];
+                    let mut token =
+                        lexer.token(&prepared.token_name, prepared.tin, value, source, point);
+                    token
+                        .use_data_mut()
+                        .insert("block".to_string(), Value::String(block.name.clone()));
+                    let consumed = source.chars().count();
+                    lexer.advance_chars(consumed);
+                    return Some(token);
+                }
+                // The window ends inside the block: read on and try again.
+                Err(Rejected::Edge) => {
+                    let ahead = rest.len();
+                    let read = rest.chars().count();
+                    lexer.fill(read.saturating_mul(2).max(read + 1));
+                    if lexer.window().len() <= ahead {
+                        exhausted = true;
+                    }
+                }
+                // A rejected escape: the bad token spans the escape character.
+                Err(Rejected::Escape { at }) => {
+                    let position = point.site.pos + rest[..at].chars().count();
+                    return Some(lexer.bad_span(INVALID_ESCAPE, position, position + 1));
+                }
+                // Once a start matches, the block is committed: never
+                // reaching an end delimiter is an error, not a fall-through.
+                // The span is the start delimiter, as in TypeScript.
+                Err(Rejected::Unterminated { start }) => {
+                    let position = point.site.pos;
+                    let width = rest[..start].chars().count();
+                    return Some(lexer.bad_span(INVALID_TEXT, position, position + width));
+                }
             }
         }
     }
     None
 }
 
+/// What [`match_start`] found at the cursor.
+enum Start {
+    /// The block's start does not match here.
+    No,
+    /// The window ends inside a start delimiter that may yet match.
+    Edge,
+    /// The block's start matches, consuming this many bytes (zero when the
+    /// delimiter is kept or there is none).
+    At(usize),
+}
+
 /// Match a block's start against the rule context and the source at the
-/// cursor. On a match, the byte length of the consumed start delimiter
-/// (zero when it is kept or there is none).
-fn match_start(rest: &str, rule: &Rule, block: &Block) -> Option<usize> {
+/// cursor, `rest`. Unless `exhausted`, a delimiter that `rest` holds only
+/// the start of answers [`Start::Edge`].
+fn match_start(rest: &str, rule: &Rule, block: &Block, exhausted: bool) -> Start {
     let start = block.start.as_ref();
     let rulespec = start.and_then(|start| start.rule.as_ref());
 
@@ -911,20 +944,25 @@ fn match_start(rest: &str, rule: &Rule, block: &Block) -> Option<usize> {
 
     // Resolve "no condition evaluated" to a pass.
     if !match_rule.unwrap_or(true) {
-        return None;
+        return Start::No;
     }
 
     let Some(fixed) = start.and_then(|start| start.fixed.as_ref()) else {
-        return Some(0);
+        return Start::At(0);
     };
     let consume = start.map(|start| &start.consume);
     for delimiter in fixed {
         if rest.starts_with(delimiter.as_str()) {
             let consumed = consume.is_none_or(|consume| consume.applies_to(delimiter));
-            return Some(if consumed { delimiter.len() } else { 0 });
+            return Start::At(if consumed { delimiter.len() } else { 0 });
+        }
+        // The window may end inside the delimiter, which then may match
+        // once it holds more, before any delimiter after it is tried.
+        if !exhausted && rest.len() < delimiter.len() && delimiter.starts_with(rest) {
+            return Start::Edge;
         }
     }
-    None
+    Start::No
 }
 
 /// The result of a completed scan: the value, and the byte offset in the
@@ -938,17 +976,25 @@ enum Rejected {
     /// An escape not in the map, with unknown escapes disallowed; `at` is
     /// the byte offset of the escape character.
     Escape { at: usize },
-    /// No end delimiter was reached.
-    Unterminated,
+    /// No end delimiter was reached; `start` is the byte length of the
+    /// start delimiter the block consumed.
+    Unterminated { start: usize },
+    /// The scan reached the end of the text the lexer holds while the
+    /// source may have more.
+    Edge,
 }
 
 /// Scan forward from `start` for one of the block's end delimiters,
-/// applying escapes, then trim and resolve the value.
+/// applying escapes, then trim and resolve the value. Unless `exhausted`,
+/// a scan that reaches the end of `rest`, the text the lexer holds,
+/// answers [`Rejected::Edge`]; with `exhausted`, the end of `rest` is the
+/// end of the source.
 fn parse_to_end(
     rest: &str,
     start: usize,
     block: &Block,
     config: &MatcherConfig,
+    exhausted: bool,
 ) -> Result<Scanned, Rejected> {
     let fixed = &block.end.fixed;
 
@@ -969,6 +1015,9 @@ fn parse_to_end(
 
     loop {
         let current = rest[index..].chars().next();
+        if current.is_none() && !exhausted {
+            return Err(Rejected::Edge);
+        }
 
         // Check for an end delimiter first, so an escape character that
         // is also an end character ends the block.
@@ -979,6 +1028,10 @@ fn parse_to_end(
                 end_index = after;
                 done = true;
                 break;
+            }
+            // The window may end inside the tail.
+            if !exhausted && rest.len() - after < tail.len() {
+                return Err(Rejected::Edge);
             }
             if rest[after..].starts_with(tail) {
                 end_index = after + tail.len();
@@ -997,7 +1050,10 @@ fn parse_to_end(
             // escape: the block never reaches an end delimiter and is
             // reported as unterminated.
             let Some(escaped) = rest[next..].chars().next() else {
-                return Err(Rejected::Unterminated);
+                if !exhausted {
+                    return Err(Rejected::Edge);
+                }
+                return Err(Rejected::Unterminated { start });
             };
             let after = next + escaped.len_utf8();
             // TypeScript reads one UTF-16 code unit here, so a character
@@ -1026,7 +1082,7 @@ fn parse_to_end(
     }
 
     if !done {
-        return Err(Rejected::Unterminated);
+        return Err(Rejected::Unterminated { start });
     }
 
     let endfixed = &rest[index..end_index];

@@ -91,7 +91,7 @@ func TestSpec(t *testing.T) {
 // and Go to the rune's UTF-8 bytes, which agree on the BMP only, so a
 // fixture must not write a lone surrogate.
 //
-// Kept byte-identical to unescapeHoover in ts/test/parity.test.ts.
+// Kept byte-identical to unescapeHoover in ts/test/unescape.ts.
 func specUnescape(s string) string {
 	if !strings.Contains(s, `\`) {
 		return s
