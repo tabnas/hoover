@@ -281,6 +281,13 @@ function matchStart(
 
     fixed = Array.isArray(fixed) ? fixed : [fixed]
     for (let fI = 0; !matchFixed && fI < fixed.length; fI++) {
+      // In a parse from a reader `lex.src` is the window, which may end
+      // inside the delimiter: read on until the whole of it lies past the
+      // cursor, or the source ends.
+      if (src.length < hvpnt.sI + fixed[fI].length) {
+        lex.fill(fixed[fI].length)
+        src = lex.src
+      }
       if (src.substring(hvpnt.sI).startsWith(fixed[fI])) {
         matchFixed = true
 
@@ -337,6 +344,24 @@ function parseToEnd(
 
   let src = lex.src
 
+  // The block is read through the lexer's window, so that a parse from a
+  // reader may hold a window of the source (`lex.window`, admin ADR-30):
+  // there `lex.src` is the window, which may end inside the block. Where
+  // the scan reaches the window's end, `held` asks it to fill to twice
+  // what the scan has read past the cursor, so a long block costs its
+  // length to read and not its square, and the scan carries on over the
+  // grown `lex.src`, whose positions do not move while a token is cut. The
+  // end of the window is the end of the source only once the source has
+  // nothing more to give, so a block ends where the whole text ends it. In
+  // a whole text `lex.fill` only answers.
+  const held = (i: number): boolean => {
+    if (i < src.length) return true
+    const read = i - lex.pnt.sI
+    lex.fill(Math.max(read + 1, 2 * read))
+    src = lex.src
+    return i < src.length
+  }
+
   let endspec = block.end!
   let fixed: string[] = endspec.fixed as string[]
   fixed = 'string' === typeof fixed ? [fixed] : fixed
@@ -356,6 +381,7 @@ function parseToEnd(
   let endCharIndex = 0
 
   top: do {
+    held(sI)
     c = src[sI]
 
     // Did this step consume a newline? Tracked separately because `c` is
@@ -375,14 +401,14 @@ function parseToEnd(
         break top
       }
 
-      // Match tail
-      else if (
-        'string' === typeof tail &&
-        tail === src.substring(sI + 1, sI + 1 + tail.length)
-      ) {
-        endI = sI + 1 + tail.length
-        done = true
-        break top
+      // Match tail, once the window holds as much of it as the source has.
+      else if ('string' === typeof tail) {
+        held(sI + tail.length)
+        if (tail === src.substring(sI + 1, sI + 1 + tail.length)) {
+          endI = sI + 1 + tail.length
+          done = true
+          break top
+        }
       }
     }
 
@@ -392,7 +418,7 @@ function parseToEnd(
       // scan past the end of source, so the block never reaches an end
       // delimiter and the caller reports it as unterminated (invalid_text).
       // Handled explicitly so an `undefined` is never pushed into the value.
-      if (src.length <= sI + 1) {
+      if (!held(sI + 1)) {
         sI += 2
         break top
       }

@@ -543,6 +543,13 @@ func matchStart(
 		matchFixed = false
 
 		for _, f := range fixed {
+			// In a parse from a reader lex.Src is the window, which may end
+			// inside the delimiter: read on until the whole of it lies past
+			// the cursor, or the source ends.
+			if len(src) < sI+len(f) {
+				lex.Fill(len(f))
+				src = lex.Src
+			}
 			if sI+len(f) <= len(src) && src[sI:sI+len(f)] == f {
 				matchFixed = true
 
@@ -610,6 +617,26 @@ func parseToEnd(
 
 	src := lex.Src
 
+	// The block is read through the lexer's window, so that a parse from a
+	// reader may hold a window of the source (lex.window, admin ADR-30):
+	// there lex.Src is the window, which may end inside the block. Where
+	// the scan reaches the window's end, held asks it to fill to twice what
+	// the scan has read past the cursor, so a long block costs its length
+	// to read and not its square, and the scan carries on over the grown
+	// lex.Src, whose positions do not move while a token is cut. The end of
+	// the window is the end of the source only once the source has nothing
+	// more to give, so a block ends where the whole text ends it. In a
+	// whole text Lex.Fill only answers.
+	held := func(i int) bool {
+		if i < len(src) {
+			return true
+		}
+		read := i - lex.Cursor().SI
+		lex.Fill(max(read+1, 2*read))
+		src = lex.Src
+		return i < len(src)
+	}
+
 	endspec := block.End
 	fixed := endspec.Fixed
 
@@ -651,7 +678,7 @@ func parseToEnd(
 		// End-of-input check: only the "" delimiter (endOfInput) ends the
 		// block here. No byte value can carry that sentinel, so a NUL in the
 		// source is ordinary content, as it is in TS.
-		if sI == len(src) {
+		if !held(sI) {
 			for _, ec := range endchars {
 				if ec == endOfInput {
 					endI = sI
@@ -683,6 +710,8 @@ func parseToEnd(
 				break
 			}
 
+			// Once the window holds as much of the tail as the source has.
+			held(sI + len(tail))
 			if sI+1+len(tail) <= len(src) && src[sI+1:sI+1+len(tail)] == tail {
 				endI = sI + 1 + len(tail)
 				done = true
@@ -697,7 +726,7 @@ func parseToEnd(
 			// absent next character, running the scan past the end of
 			// source: the block never reaches an end delimiter (not even a
 			// configured EOF one) and is reported as unterminated.
-			if sI+1 >= len(src) {
+			if !held(sI + 1) {
 				done = false
 				break
 			}

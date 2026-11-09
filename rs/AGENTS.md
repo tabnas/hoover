@@ -13,7 +13,9 @@ and this file only covers what is specific to this crate.
 | `tests/hoover_test.rs` | the in-language behaviour tests, mirroring `../ts/test/hoover.test.ts` and `../go/hoover_test.go` |
 | `tests/perf_test.rs` | instance reuse must beat rebuild-per-parse, mirroring `../go/perf_test.go` |
 | `tests/version_test.rs` | `VERSION`, `Cargo.toml` and `ts/package.json` must agree |
+| `tests/reader_test.rs` | a parse from a reader against the parse of the same text, with `lex.window` declared on the mini grammar's parser: every fixture row and every block shape under windows of a few characters, blocks longer than the window, a long block |
 | `tests/common/mini_grammar.rs` | the `val` + `group` host grammar, the Rust twin of `../ts/test/minigrammar.ts` and `../go/minigrammar_test.go` |
+| `tests/common/spec.rs` | the fixtures' input codec and a row's options, which `tests/parity_test.rs` and `tests/reader_test.rs` share |
 | `README.md` | the crate front page, prose-gated |
 
 Crate `tabnas-hoover`, library `tabnas_hoover`. The engine crate

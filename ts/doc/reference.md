@@ -229,6 +229,11 @@ escapes, consumption, trimming, and value resolution. Advances `hvpnt`
 past any consumed end delimiter. Exported for advanced use; the matcher
 calls it internally.
 
+In a parse from a reader, `lex.src` is a window of the source. Where the
+scan reaches the end of the window, it reads on with `lex.fill`, so it
+gives what a parse of the whole text gives. The plugin declares no
+window of its own: the grammar that builds the parser declares it.
+
 ## `ParseResult`
 
 ```ts

@@ -31,6 +31,11 @@ The start matcher (`matchStart`) is unexported; the lex matcher is
 installed for you when the plugin registers. `ParseToEnd` is exported to
 mirror the TS module's exported `parseToEnd`.
 
+In a parse from a reader, `lex.Src` is a window of the source. Where a
+scan reaches the end of the window, it reads on with `Lex.Fill`, so it
+gives what a parse of the whole text gives. The plugin declares no
+window of its own: the grammar that builds the parser declares it.
+
 ## `Hoover` (plugin)
 
 ```go

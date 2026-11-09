@@ -263,6 +263,24 @@ of this repo. CI clones both siblings for you (see CI below).
   predicate (`groups_enabled`) itself and refuses on the same condition.
   See [`rs/AGENTS.md`](rs/AGENTS.md).
 
+- **A parse from a reader: hoover reads through the window, and declares
+  none.** The engine reads a grammar that declares `lex.window` a window
+  at a time (`tn.parseReader`, `Tabnas.ParseReader`,
+  `Tabnas::parse_reader`; admin ADR-30, ADR-33), and while a token is cut
+  `lex.src` / `Lex.Src` is the window's text. hoover's matcher reads only
+  through it: a start delimiter the window ends inside is read on before
+  it is compared (`lex.fill` / `Lex.Fill` to the delimiter's length), and
+  `parseToEnd` fills to twice what it has read where its scan reaches the
+  window's end, before it reads a character, an end delimiter's tail or
+  an escaped character there, so the end of the window is taken for the
+  end of the source (the `""` delimiter, an unterminated block, an escape
+  with nothing after it) only once the source has nothing more. Rust's
+  matcher scans `Lexer::window()` and, at its end, answers an edge, fills
+  and scans the block again. A long block so costs its length to read,
+  not its square. hoover is a plugin a grammar installs beneath matchers of
+  its own, so the window is the grammar's to declare, on the parser it
+  builds whole, never hoover's.
+
 ## Build & test
 
 TypeScript (from `ts/`):
@@ -675,6 +693,17 @@ string exactly the kind of value instruction-like text hides in.
   typed-options surface, `HooverOptions::from_json`, the token's `use`
   bag, the include-filter refusal, and that one instance serves
   concurrent callers.
+- [`ts/test/window.test.ts`](ts/test/window.test.ts), `go/window_test.go`
+  and `rs/tests/reader_test.rs` — a parse from a reader against the parse
+  of the same text, on the mini grammar's parser with `lex.window`
+  declared (see "A parse from a reader" under the gotchas): every fixture
+  row, every block shape cut by a window of a few characters (TypeScript
+  and Rust, through the engine's small-window hook), blocks longer than
+  the window, and a long block. Go's hook is unexported, so its
+  `TestBlocksCutAtEveryPlace` puts what a block decides on just past the
+  64 KiB margin and moves the block along the source a byte at a time.
+  The fixture codec they share is `ts/test/unescape.ts` and
+  `rs/tests/common/spec.rs`.
 
 ## CI
 
